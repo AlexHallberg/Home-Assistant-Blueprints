@@ -3,6 +3,11 @@
 Versions before v2026.10.0 are upstream releases; see the
 [upstream commit log](https://github.com/edwardtfn/ha_auto_update_scheduled/commits/main).
 
+## v2026.10.3 - 2026-10-16
+
+- Changed: the description and file header no longer send support requests and bug reports to the
+  original author. Problems with this fork go to this repository's issues, as is, without support.
+
 ## v2026.10.2 - 2026-10-16
 
 - Changed: the minimum patch version is set separately for core/OS, firmware and general

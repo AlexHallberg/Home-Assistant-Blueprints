@@ -8,7 +8,7 @@ Installs Home Assistant updates automatically: Core, OS, Supervisor, add-ons, HA
 and anything else that shows up as an `update` entity. It can back up first, install the updates one
 by one, restart when an update needs it, and pick up where it left off after a restart.
 
-Current version: **v2026.10.2**, based on upstream v2026.6.0. See [CHANGELOG.md](CHANGELOG.md).
+Current version: **v2026.10.3**, based on upstream v2026.6.0. See [CHANGELOG.md](CHANGELOG.md).
 
 [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.][import-badge]][import]
 

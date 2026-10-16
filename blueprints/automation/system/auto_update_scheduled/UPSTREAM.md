@@ -16,7 +16,7 @@ does **not** apply to this folder; the original work remains Edward Firmo's.
 | Imported with    | `git subtree add` (full history)                   |
 | Upstream commit  | `1924a7f` (Merge pull request #22 from edwardtfn/dev) |
 | Upstream version | v2026.6.0                                          |
-| Fork version     | v2026.10.2 (see [CHANGELOG.md](CHANGELOG.md))      |
+| Fork version     | v2026.10.3 (see [CHANGELOG.md](CHANGELOG.md))      |
 
 ## Changes in this fork
 

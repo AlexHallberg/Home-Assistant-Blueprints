@@ -16,10 +16,9 @@
 #####   - Ensure you have reliable backups before enabling automatic updates                   #####
 #####   - Auto-updates in production environments may lead to system instability               #####
 #####   - Updates may affect connected devices and integrations                                #####
-##### - For discussions:                                                                       #####
-#####     https://community.home-assistant.io/t/459281                                         #####
-##### - For support, bug reports and new ideas:                                                #####
-#####     https://github.com/edwardtfn/ha_auto_update_scheduled/issues                         #####
+##### - This fork is provided as is, without support. Report problems with it at:              #####
+#####     https://github.com/AlexHallberg/Home-Assistant-Blueprints/issues                     #####
+#####   and not to the original author.                                                        #####
 ####################################################################################################
 ---
 blueprint:
@@ -35,7 +34,7 @@ blueprint:
     Fork of [edwardtfn/ha_auto_update_scheduled](https://github.com/edwardtfn/ha_auto_update_scheduled)
     by [Edward Firmo](https://github.com/edwardtfn).
 
-    Version v2026.10.2, based on upstream v2026.6.0. See the
+    Version v2026.10.3, based on upstream v2026.6.0. See the
     [changelog](https://github.com/AlexHallberg/Home-Assistant-Blueprints/blob/main/blueprints/automation/system/auto_update_scheduled/CHANGELOG.md).
 
     ## Attention:
@@ -50,11 +49,9 @@ blueprint:
 
     - Updates may affect connected devices and integrations.
 
-    ## For discussions:
-      - [Home Assistant Community portal](https://community.home-assistant.io/t/459281)
-
-    ## For support, bug reports and new ideas:
-      - [GitHub Issues](https://github.com/edwardtfn/ha_auto_update_scheduled/issues)
+    ## Problems with this fork:
+      - This fork is provided as is, without support.
+      - Report problems on [GitHub](https://github.com/AlexHallberg/Home-Assistant-Blueprints/issues), not to the original author.
   domain: automation
   source_url: https://raw.githubusercontent.com/AlexHallberg/Home-Assistant-Blueprints/main/blueprints/automation/system/auto_update_scheduled/auto_update_scheduled.yaml
   input:
