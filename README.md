@@ -3,6 +3,13 @@
 A collection of Home Assistant blueprints: some written here, some forked from other
 authors with local changes.
 
+> [!IMPORTANT]
+> These blueprints are built for my own Home Assistant setup. The repository is public
+> so they are easy to import, and you are welcome to use them, but they are provided
+> as is, without support or any guarantee they will work for you. Issues and feature
+> requests may go unanswered, and things can change at any time. Review a blueprint
+> before running it, especially the ones that update or restart your system.
+
 ## Blueprints
 
 | Blueprint | Type | Category | Origin | Import |
