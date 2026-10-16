@@ -1,8 +1,9 @@
 """Check that every blueprint carries a consistent calendar version.
 
 For each blueprints/<domain>/<category>/<name>/<name>.yaml:
-- the blueprint `name` ends with a version `vYYYY.M.N`,
-- the same version appears again in the file (the description),
+- the description has exactly one "Version vYYYY.M.N" line,
+- the blueprint `name` does not contain a version (Spook's update entity takes its
+  entity ID from the name, so a version there would stay frozen in the entity ID),
 - the folder has a CHANGELOG.md with a `## vYYYY.M.N` heading for it.
 
 Exits non-zero and prints one line per problem. See "Versioning" in the root README.
@@ -11,19 +12,25 @@ import pathlib
 import re
 import sys
 
-NAME = re.compile(r"^  name: .*\s(v\d{4}\.\d{1,2}\.\d+)\s*$", re.MULTILINE)
+VERSION = r"v\d{4}\.\d{1,2}\.\d+"
+MARKER = re.compile(rf"^    Version ({VERSION})\b", re.MULTILINE)
+NAME = re.compile(r"^  name: (.*)$", re.MULTILINE)
 
 problems = []
 blueprints = sorted(pathlib.Path("blueprints").glob("*/*/*/*.yaml"))
 for path in blueprints:
     text = path.read_text(encoding="utf-8")
-    match = NAME.search(text)
-    if not match:
-        problems.append(f"{path}: blueprint name does not end with a version like v2026.10.0")
+
+    name = NAME.search(text)
+    if name and re.search(VERSION, name.group(1)):
+        problems.append(f"{path}: blueprint name contains a version; keep it in the description only")
+
+    markers = MARKER.findall(text)
+    if len(markers) != 1:
+        problems.append(f"{path}: description needs exactly one 'Version vYYYY.M.N' line, found {len(markers)}")
         continue
-    version = match.group(1)
-    if text.count(version) < 2:
-        problems.append(f"{path}: {version} is in the name but not in the description")
+    version = markers[0]
+
     changelog = path.parent / "CHANGELOG.md"
     if not changelog.exists():
         problems.append(f"{path}: missing {changelog}")

@@ -1,7 +1,7 @@
 blueprint:
-  name: Hue, Friends of Hue switch, 4 button, single + double click + hold v2026.10.1
+  name: Hue, Friends of Hue switch, 4 button, single + double click + hold
   description: >-
-    Version v2026.10.1. See the
+    Version v2026.10.2. See the
     [changelog](https://github.com/AlexHallberg/Home-Assistant-Blueprints/blob/main/blueprints/automation/switches/hue_foh_4button_double_tap/CHANGELOG.md).
 
 

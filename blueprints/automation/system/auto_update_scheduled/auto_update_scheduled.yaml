@@ -23,7 +23,7 @@
 ####################################################################################################
 ---
 blueprint:
-  name: Home Assistant Auto-update on a schedule base v2026.10.0
+  name: Home Assistant Auto-update
   author: Edward Firmo (https://github.com/edwardtfn)
   homeassistant:
     min_version: 2025.8.0
@@ -35,9 +35,7 @@ blueprint:
     Fork of [edwardtfn/ha_auto_update_scheduled](https://github.com/edwardtfn/ha_auto_update_scheduled)
     by [Edward Firmo](https://github.com/edwardtfn).
 
-    ## v2026.10.0
-
-    Based on upstream v2026.6.0. See the
+    Version v2026.10.1, based on upstream v2026.6.0. See the
     [changelog](https://github.com/AlexHallberg/Home-Assistant-Blueprints/blob/main/blueprints/automation/system/auto_update_scheduled/CHANGELOG.md).
 
     ## Attention:

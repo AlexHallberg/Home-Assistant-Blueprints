@@ -14,7 +14,7 @@ authors with local changes.
 
 | Blueprint | Type | Category | Origin | Import |
 | --------- | ---- | -------- | ------ | ------ |
-| [Auto-update on a schedule](blueprints/automation/system/auto_update_scheduled/) | Automation | System | Fork of [edwardtfn][upstream-auto-update] | [![Import][import-badge]][import-auto-update] |
+| [Auto-update](blueprints/automation/system/auto_update_scheduled/) | Automation | System | Fork of [edwardtfn][upstream-auto-update] | [![Import][import-badge]][import-auto-update] |
 | [Friends of Hue pairs](blueprints/automation/switches/hue_foh_4button_pairs/) | Automation | Switches | Own | [![Import][import-badge]][import-hue-foh] |
 | [Friends of Hue double click](blueprints/automation/switches/hue_foh_4button_double_tap/) | Automation | Switches | Own | [![Import][import-badge]][import-hue-foh-double] |
 
@@ -64,10 +64,12 @@ Every blueprint has its own calendar version, `vYYYY.M.N`, the same scheme Home 
   `v2026.11.0`.
 - Any change to the blueprint YAML that people will notice in Home Assistant gets a new version.
   Changes to the README or other documentation do not.
-- The version appears in three places, which must match:
-  - at the end of the blueprint `name`, so it shows in Home Assistant's blueprint list;
-  - in the `description`;
-  - as a heading in the blueprint's `CHANGELOG.md`, with the date and what changed.
+- The version appears in two places, which must match:
+  - a `Version vYYYY.M.N` line in the `description`, which Home Assistant shows on import;
+  - a heading in the blueprint's `CHANGELOG.md`, with the date and what changed.
+- The blueprint `name` never contains the version. [Spook](https://spook.boo/blueprint) creates an
+  update entity per imported blueprint and takes its entity ID from the name, so a version there
+  would stay frozen in the entity ID after every update.
 - A fork's first release in this repository restarts the numbering from its release month, and
   its changelog names the upstream version it is based on.
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## v2026.10.2 - 2026-10-16
+
+- Changed: the version is no longer part of the blueprint name; it is in the description.
+  Spook's update entity takes its entity ID from the name, so a version there would stay frozen
+  in the entity ID after updates.
+
 ## v2026.10.1 - 2026-10-16
 
 - Changed: select one Friends of Hue switch device instead of an event entity per button. Its
