@@ -1,23 +1,74 @@
-# Home Assistant - Auto update (scheduled)
+# Home Assistant Auto-update
 
 > [!NOTE]
 > This is a fork of [ha_auto_update_scheduled](https://github.com/edwardtfn/ha_auto_update_scheduled)
 > by [Edward Firmo](https://github.com/edwardtfn). See [UPSTREAM.md](UPSTREAM.md) for details.
 
-## Changes in this fork
+Installs Home Assistant updates automatically: Core, OS, Supervisor, add-ons, HACS, device firmware
+and anything else that shows up as an `update` entity. It can back up first, install the updates one
+by one, restart when an update needs it, and pick up where it left off after a restart.
 
 Current version: **v2026.10.2**, based on upstream v2026.6.0. See [CHANGELOG.md](CHANGELOG.md).
 
-### Named steps in traces
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.][import-badge]][import]
 
-Every condition and action has a name, so an automation trace shows *why* a run stopped
-("Schedule is on", "Updates are not paused", "Backup confirmed by a new timestamp")
-instead of "If any of 5 conditions matches" or "Test if template renders a value equal to true".
+[import-badge]: https://my.home-assistant.io/badges/blueprint_import.svg
+[import]: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FAlexHallberg%2FHome-Assistant-Blueprints%2Fmain%2Fblueprints%2Fautomation%2Fsystem%2Fauto_update_scheduled%2Fauto_update_scheduled.yaml
 
-### Install log
+> [!WARNING]
+> Auto-updating can break things. Make sure you have working backups, and read the
+> [community discussion](https://community.home-assistant.io/t/how-to-keep-everything-automatically-up-to-date/288938)
+> about the risks before you turn it on.
 
-An optional plain-text log file with what each run found, what it installed (with versions),
-backups, restarts, errors, and a summary line. Runs with nothing to update write nothing.
+## What this fork adds
+
+- **Named steps in traces.** Every condition and action has a name, so a trace shows *why* a run
+  stopped ("Updates are not paused", "Backup confirmed by a new timestamp") instead of
+  "If any of 5 conditions matches".
+- **Install log.** An optional log file with what each run found and installed, backups, restarts
+  and errors. See [Install log](#install-log).
+- **A minimum patch version per update type.** For example, hold Core back until `x.y.2` while
+  installing HACS and add-on updates straight away, in one automation.
+- **Working resume after a restart.** Upstream's "Update process started" toggle check never
+  matched, so resuming after a restart was not detected and backups could be skipped.
+
+## How a run works
+
+The automation starts when an update appears, when Home Assistant starts, when automations are
+reloaded, on a new day, or when the schedule turns on. It then:
+
+1. Checks that it may run: inside the schedule (or no schedule is set), on an allowed day of the
+   month, and not paused.
+2. Lists the pending updates, after the update modes, minimum patch versions, inclusions and
+   exclusions.
+3. Runs your pre-update actions, then makes a backup if one is due.
+4. Installs general updates, then firmware, then Core, then OS, one at a time. Anything left over is
+   installed together at the end.
+5. Restarts Home Assistant if an update needs it and restarting is enabled.
+6. Runs your post-update actions.
+
+### Schedule
+
+With a **schedule entity** set, new update runs only start while it is on. Leave it empty to install
+updates whenever they are found. **Out of schedule entities** are always updated as soon as an update
+appears, even outside the schedule.
+
+### Resuming after a restart
+
+Core and OS updates restart Home Assistant in the middle of a run. To continue afterwards, set the
+**"Update process started" toggle** to an `input_boolean` helper. The run turns it on at the start and
+off at the end. When Home Assistant starts with the toggle on, the run resumes: it skips the
+pre-update actions and the backup, since those already ran, and installs the rest.
+
+A toggle left on for more than 6 hours, or found on by a run that was not started by a restart or
+reload, is treated as left over from a run that did not finish. That run makes its backup as normal
+and writes a note to the install log.
+
+Use a separate toggle for each automation made from this blueprint.
+
+## Install log
+
+An optional plain-text log file. Runs with nothing to update write nothing.
 
 ```text
 2026-10-16 18:08:07 [Auto Update Home Assistant] Found 2 updates:
@@ -46,8 +97,8 @@ Setup:
        - /config
    ```
 
-   This lets file-based integrations read and write anything in `/config`. To keep it narrower,
-   allow a subfolder such as `/config/logs` instead and put the log files there.
+   This lets file-based integrations read and write anything in `/config`. To keep it narrower, allow
+   a subfolder such as `/config/logs` instead and put the log files there.
 
 2. Add the **File** integration under *Settings > Devices & Services*, choose
    **Set up a notification service**, and enter a path such as `/config/auto_update.log`.
@@ -55,110 +106,75 @@ Setup:
 
 3. In the automation, open **Install log (optional)** and select the file notify entities.
 
-A run that ends in a restart (for example a Core update) stops before the summary line;
-the last entry is then the `Installing ...` line for the update that restarted Home Assistant.
+A run that ends in a restart (for example a Core update) stops before the summary line; the last
+entry is then the `Installing ...` line for the update that restarted Home Assistant.
 
-## What is this?
-A Home Assistant blueprint to assist keeping the system automatically updated with the latest version of it's multiple components.
+## Inputs
 
-I’ve created a new version of my previous [Auto-update Home Assistant blueprint](https://community.home-assistant.io/t/auto-update-home-assistant/429015) , but now based in the new [schedule helpers](https://www.home-assistant.io/blog/2022/09/07/release-20229/#new-helper-weekly-schedule) and other improvements. I’m using this blueprint myself.
+All inputs are optional.
 
-I understand Home Assistant wasn't considered a stable system for years, 
+### When
 
-I still think you should understand the benefits and risks of auto-updating, so I keep suggesting you to take a look on those discussions:
+| Input | What it does |
+| ----- | ------------ |
+| Schedule entity | Runs only start while this schedule is on. Leave empty to update whenever updates are found. |
+| Earliest / latest day in the month | Only run between these days. `0` turns the check off. |
+| Out of schedule entities | Update entities installed as soon as an update appears, even outside the schedule. |
+| Pause update entities | While any of these is on, nothing is updated. |
 
-- [How to keep everything automatically up to date? - Configuration - Home Assistant Community (home-assistant.io)](https://community.home-assistant.io/t/how-to-keep-everything-automatically-up-to-date/288938)
-- [Auto Update feature for Core/Supervisor - Feature Requests - Home Assistant Community (home-assistant.io)](https://community.home-assistant.io/t/auto-update-feature-for-core-supervisor/412783)
-- If you don’t want an auto-update, you might like this blueprint for notifications of new updates: [Update notifications (Core, OS, Addons, HACS, etc) - Blueprints Exchange - Home Assistant Community (home-assistant.io)](https://community.home-assistant.io/t/update-notifications-core-os-addons-hacs-etc/409161)
+### What
 
-Please provide feedback. This is based on my other blueprint, just changing the items related to the schedule, so I believe the update mechanism itself is quite well tested, but you know, there are always new ideas or new use cases that we never though about, so let me know your ideas, issues and concerns… :relaxed:
+| Input | What it does |
+| ----- | ------------ |
+| Update mode (core and OS, firmware, general) | **All**, **Patches only** (`x.y.0` to `x.y.3`, not `x.y` to `x.y+1`) or **Don't update**. |
+| Minimum patch version (core and OS, firmware, general) | Skip an update until its patch number reaches this value. `2` skips `x.y.0` and `x.y.1`. `0` turns it off. |
+| Entity inclusion mode, list and searchfilter | Limit general updates to listed entities, or to entity IDs matching a filter such as `update.esphome_`. |
+| Exclusions | Update entities that are never installed. |
 
-## Important notes
-### Supervisor update
-The update of HA Supervisor is always set to auto-update by the system, so it will be updated out of this blueprint anyways (and the time of that update is not controlled by this blueprint). Please take a look into the following discussions around this:
-- [Feature request: block supervisor auto-updates](https://community.home-assistant.io/t/feature-request-block-supervisor-auto-updates/112743)
-- [How to stop supervisor auto-update?](https://community.home-assistant.io/t/how-to-stop-supervisor-auto-update/132271)
-- [How to stop supervisor's auto update?](https://community.home-assistant.io/t/how-to-stop-supervisors-auto-update/173017)
-### Add-ons auto-update on the UI
-All the standard add-ons of Home Assistant supports to set “Auto-update” thru the UI. If that is enabled, this blueprint cannot guarantee the time of running the updates for that specific add-on (as it is controlled outside this blueprint).
-### HACS update
-At this moment (2022-09-10), HACS updates are not released, but it is an experimental feature, so, if you enable HACS to use its experimental features, this blueprint will include HACS updates automatically.
-### Schedule helper
-You will need a [schedule helper](https://www.home-assistant.io/blog/2022/09/07/release-20229/#new-helper-weekly-schedule) indicating the time slots where the updates could start.
-- Schedule documentation: [https://www.home-assistant.io/integrations/schedule](https://www.home-assistant.io/integrations/schedule)
+"General" means everything that is not Core, OS, Supervisor or device firmware: add-ons, HACS,
+integrations and so on. Supervisor follows the core and OS settings.
 
-The updates will be installed one by one, while inside the schedule windows. It’s not guaranteed that the update will finish inside the schedule windows.
-If one of the updates forces HA to reboot, the automation will restart after the reboot and will resume the updates of all the remaining items while in the schedule windows.
+### Backup
 
-## Installing
-### Import blueprint tools in Home Assistant (easier)
-Just click in the following button and follow it's steps:
+| Input | What it does |
+| ----- | ------------ |
+| Create a backup before starting the updates? | **Never**, **Always**, or **When no recent backup is detected**. Uses your automatic backup settings. |
+| Backup state sensor | `sensor.backup_backup_manager_state`. Used to wait for a running backup and to confirm the new one. |
+| Last successful automatic backup sensor | `sensor.backup_last_successful_automatic_backup`. Needed for the "no recent backup" mode. |
+| Maximum backup age | How old the last backup may be before a new one is made. Default 1 day. |
+| Backup timeout | How long to wait for a backup to finish, in minutes. |
 
-[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FAlexHallberg%2FHome-Assistant-Blueprints%2Fmain%2Fblueprints%2Fautomation%2Fsystem%2Fauto_update_scheduled%2Fauto_update_scheduled.yaml)
+### Actions
 
-### Manual
-1. Open Home Assistant interface
-2. Using the ***File editor*** (or ***Studio Code Server***), navigate to the `/config/blueprints/automation`, right click and then click on ***New Folder...***:
-![image](https://user-images.githubusercontent.com/94725493/193560317-750532bf-545e-4392-be94-9f6d2be79305.png)
-3. Type a name for your new folder
-4. Right click your new created folder and select ***New file...***, then name your file (make sure to end with `.yaml`).
-![image](https://user-images.githubusercontent.com/94725493/193563810-d6dc01b2-1476-432c-9c6a-aa0cd07eac58.png)
+| Input | What it does |
+| ----- | ------------ |
+| Pre-update actions | Run before the backup and updates. Not run again when resuming after a restart. |
+| Pre-restart actions | Run before a restart that is skipped because the configuration check failed. |
+| Post-update actions | Run after the updates. A run that ends in a restart does not get here. |
+| Step actions | Run at each step: starting, backup, update progress, errors, restart, done. |
 
-5. Go to the edit window and past the content of this blueprint.
-6. Go to ***Developer tools*** and select the tab ***YAML***.
-7. Click on ***Automations*** and wait until it is reloaded.
-![image](https://user-images.githubusercontent.com/94725493/193564392-19875a27-72bf-425d-8883-763c8752e4ea.png)
+The variables `updates_list` (updates found when the run started) and `updates_pending` (updates
+still to install) are available in these actions.
 
-## Creating the new automation
-1. Go to ***Settings*** and ***Automations & Scenes***
-2. Click on ***+ Create automation*** button (bottom-right)
-3. Click on the ***Use a blueprint*** box to open the list of blueprints: 
-![image](https://user-images.githubusercontent.com/94725493/193566186-dcfa2325-18ed-43fc-962b-31c2474ebedf.png)
-4. Select the new blueprint from the list
+### Notifications
 
-![image](https://user-images.githubusercontent.com/94725493/193566680-6668af94-ff6c-412b-8c93-a06c7268a1b5.png)
-5. Enter the inputs and hit ***Save*** (See Setting up)
+Send a message to a notify entity at the steps you pick: starting, backup, update progress, errors,
+restart and done. Messages are plain text. For a log file, use the [install log](#install-log)
+instead.
 
-## Setting up
-The following inputs are supported by this blueprint:
-### Create a full backup before start the updates?
-Select it if you want to trigger an additional backup before starting the updates.
+### General settings
 
-### Force Home Assistant host to restart if required by any update? <sup>*Required</sup>
-This won't affect updates where a restart is automatic, but for updates requiring a manual restart (quite common on HACS) this blueprint can automatically force a restart by the end of the updates.
+| Input | What it does |
+| ----- | ------------ |
+| Force Home Assistant to restart if required by any update? | Restart Core or the host after updates that need a manual restart (common with HACS). |
+| Log addon progress with verbosity to the logbook? | Write every step to the logbook. |
+| "Update Process Started" toggle entity | Lets a run resume after a restart. See [Resuming after a restart](#resuming-after-a-restart). |
+| Update timeout | How long to wait for each update before moving on. Default 1200 seconds. |
 
-### Schedule entity <sup>*Required</sup>
-You can create an Schedule under Settings > Devices & Services > Helpers.
-- The schedule windows will define when an update will start. It is possible that a backup, an update or a restart process finishes after the schedule window, but new updates won't stars outside the schedule windows.
-- For more information about Helpers, please refer to the [Home Assistant docs](https://www.home-assistant.io/integrations/schedule).
+## Things to know
 
-### Earliest day in the month to update Home Assistant <sup>*Required</sup>
-Usually a new major version of Home Assistant is available on the begining of every month. Some people consider those release as not stable enough and prefer to avoid those versions, not updating the system until the mid of the month (day 15).
-- If you select a day higher than 28 the updates won't run every month.
-
- ### Exclusions <sup>*Optional</sup>
-Select the items that should NOT be included on the automated updates.
-* Use this if you want to keep some add-on on an specific version and avoid auto-updates to it.
-      
-### Pre-update actions <sup>*Optional</sup>
-Actions to execute before the backup or any update starts.
-You can use this to send notifications, turn on/off devices or activate scenes before starting the updates.
-* Please be aware that all actions will run right before the update process, which can happens over-night. Take this in account when selecting your actions.
-* The variable `{{ pending_updates }}` is available for your automations and contains the list of pending updates.
-
-### Post-update actions <sup>*Optional</sup>
-Actions to execute AFTER the update process finishes.
-You can use this to send notifications, turn on/off devices or activate scenes after applying  the updates.
-* Please be aware that all actions will run right before the update process, which can happens over-night. Take this in account when selecting your actions.
-* The variable `{{ pending_updates }}` is available for your automations and contains the list of pending updates.
-* **IMPORTANT!** Some updates will automatically restart Home Assistant, causing the automation to interrupt before finishing, preventing the pos-updates actions to be executed. If you have critical actions to run after an update, consider including also in another automation based on Home Assistant start.
-
-### Pause update entities <sup>*Optional</sup>
-You can select one or more entities to pause the updates. If any of the selected entities is "On" or "True" the system won't be updated on the schedule time.
-You can use this to hold your updates when you have a party at home, or when you are on vacations and don't want to be concerned about updates on Home Assistant.
-
-
-![image](https://user-images.githubusercontent.com/94725493/193578971-5981aa3b-06bc-4ceb-ae2a-f3149d8ad350.png)
-
-### Changes log
-Please take a look on the [log of commits](https://github.com/edwardtfn/ha_auto_update_scheduled/commits/main).
+- **Supervisor** updates itself on Home Assistant OS, so it may update outside this automation.
+- **Add-ons** with "Auto update" turned on in their own settings are updated by Home Assistant itself,
+  not by this automation.
+- **Restart detection** recognises HACS's "restart required" notice. Other updates that need a restart
+  are not detected.

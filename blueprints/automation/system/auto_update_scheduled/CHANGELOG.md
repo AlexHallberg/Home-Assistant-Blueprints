@@ -11,6 +11,13 @@ Versions before v2026.10.0 are upstream releases; see the
   installing add-on and HACS updates straight away.
   **Breaking:** the old `minimum_patch_version` input is removed. Automations that set it
   need the new input(s) instead; otherwise the filter is off.
+- Fixed: an "Update process started" toggle left on by a run that did not finish made every
+  later run count as resuming and skip its backup. A run now only resumes when it was started by
+  a restart or reload and the toggle turned on within the last 6 hours. A left-over toggle is
+  reset, the run makes its backup as normal, and the install log notes it.
+- Changed: runs triggered while another run is going are dropped silently instead of logging an
+  "Already running" warning each time.
+- Changed: the README is rewritten for this fork.
 
 ## v2026.10.1 - 2026-10-16
 

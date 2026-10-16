@@ -865,7 +865,9 @@ blueprint:
               mode: box
 
 mode: single
-max_exceeded: warning
+# Triggers such as a new update or the backup sensor changing often fire during a long run;
+# logging a warning for each one only fills the log.
+max_exceeded: silent
 
 trigger_variables:
   input_pause_entities: !input pause_entities
@@ -987,10 +989,9 @@ condition:
           - alias: Update process toggle is configured
             condition: template
             value_template: '{{ update_process_toggle != "" }}'
-          - alias: Update process toggle is on (a run was in progress)
-            condition: state
-            entity_id: !input update_process_started_entity
-            state: "on"
+          - alias: Update process toggle is on and recent (a run was in progress)
+            condition: template
+            value_template: '{{ is_resume_after_restart }}'
 
   - alias: Today is an allowed day of the month
     condition: or
@@ -1068,11 +1069,25 @@ variables:
     {%- elif e is sequence and e | count > 0 -%}
       {{ e | first | string | trim }}
     {%- endif -%}
-  is_resume_after_restart: >
+  # A run that turns the toggle on and is then cut short (other than by a restart or reload)
+  # leaves it on. Only a recent toggle, found by a run started by a restart or reload, counts
+  # as resuming; otherwise every later run would skip its backup.
+  resume_max_age_hours: 6
+  is_update_process_toggle_on: >-
+    {{ update_process_toggle != "" and is_state(update_process_toggle, "on") }}
+  update_process_toggle_age_hours: >-
+    {% if is_update_process_toggle_on %}
+      {{ ((as_timestamp(now()) - as_timestamp((expand(update_process_toggle) | first).last_changed, 0)) / 3600) | round(1) }}
+    {% else %}
+      0
+    {% endif %}
+  is_resume_after_restart: >-
     {{
-      update_process_toggle != "" and
-      is_state(update_process_toggle, "on")
+      is_update_process_toggle_on and
+      trigger.id in ["HA Start", "Automations reloaded"] and
+      update_process_toggle_age_hours < resume_max_age_hours
     }}
+  is_stale_update_process_toggle: "{{ is_update_process_toggle_on and not is_resume_after_restart }}"
   is_out_of_schedule_mode: >
     {{
       trigger.id == "Out of schedule" or
@@ -1491,6 +1506,19 @@ action:
                 data:
                   message: '{{ install_log_line }}'
                 continue_on_error: true
+      - alias: Note a left-over update process toggle in the install log
+        if:
+          - alias: Update process toggle was left on by a run that did not finish
+            condition: template
+            value_template: "{{ is_stale_update_process_toggle }}"
+        then:
+          - alias: Set install log entry (left-over toggle)
+            variables:
+              install_log_is_error: false
+              install_log_message: >-
+                Update process toggle was still on ({{ update_process_toggle_age_hours }} h) from a run
+                that did not finish. Treating this as a new run, with a backup.
+          - *write_install_log
       - alias: Send starting notification (if selected)
         if:
           - alias: Starting notifications are selected
@@ -1537,6 +1565,19 @@ action:
         entity_id: !input schedule_entity
         state: 'on'
     then:
+      # A left-over toggle is already on, so turning it on would keep its old timestamp and a
+      # restart later in this run would not count as resuming. Turn it off first to restart the clock.
+      - alias: Reset a left-over update process toggle
+        if:
+          - alias: Update process toggle was left on by a run that did not finish
+            condition: template
+            value_template: "{{ is_stale_update_process_toggle }}"
+        then:
+          - alias: Turn off the left-over update process toggle
+            action: input_boolean.turn_off
+            target:
+              entity_id: !input update_process_started_entity
+            continue_on_error: true
       - alias: Turn on the update process toggle
         action: input_boolean.turn_on
         target:
