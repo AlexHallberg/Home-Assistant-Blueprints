@@ -1,5 +1,10 @@
 # Hue - Friends of Hue switch, 4 button, custom actions
 
+> [!NOTE]
+> This is a fork of the "all functions" blueprint by [Khvej8](https://community.home-assistant.io/u/khvej8)
+> from the [Home Assistant Community thread](https://community.home-assistant.io/t/499450/32).
+> See [UPSTREAM.md](UPSTREAM.md) for details.
+
 Runs your own actions for every button and event on Friends of Hue 4-button switches connected
 through the Hue bridge: initial press, repeat (held), short release and long release, for each
 of the four buttons. One automation can drive several switches the same way.

@@ -16,12 +16,13 @@ authors with local changes.
 | --------- | ---- | -------- | ------ | ------ |
 | [Auto-update on a schedule](blueprints/automation/system/auto_update_scheduled/) | Automation | System | Fork of [edwardtfn][upstream-auto-update] | [![Import][import-badge]][import-auto-update] |
 | [Hue Friends of Hue 4-button pairs](blueprints/automation/switches/hue_foh_4button_pairs/) | Automation | Switches | Own | [![Import][import-badge]][import-hue-foh] |
-| [Hue Friends of Hue 4-button custom](blueprints/automation/switches/hue_foh_4button_custom/) | Automation | Switches | Own | [![Import][import-badge]][import-hue-foh-custom] |
+| [Hue Friends of Hue 4-button custom](blueprints/automation/switches/hue_foh_4button_custom/) | Automation | Switches | Fork of [Khvej8][upstream-hue-foh-custom] | [![Import][import-badge]][import-hue-foh-custom] |
 
 [import-badge]: https://my.home-assistant.io/badges/blueprint_import.svg
 [upstream-auto-update]: https://github.com/edwardtfn/ha_auto_update_scheduled
 [import-auto-update]: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FAlexHallberg%2FHome-Assistant-Blueprints%2Fmain%2Fblueprints%2Fautomation%2Fsystem%2Fauto_update_scheduled%2Fauto_update_scheduled.yaml
 [import-hue-foh]: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FAlexHallberg%2FHome-Assistant-Blueprints%2Fmain%2Fblueprints%2Fautomation%2Fswitches%2Fhue_foh_4button_pairs%2Fhue_foh_4button_pairs.yaml
+[upstream-hue-foh-custom]: https://community.home-assistant.io/t/499450/32
 [import-hue-foh-custom]: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FAlexHallberg%2FHome-Assistant-Blueprints%2Fmain%2Fblueprints%2Fautomation%2Fswitches%2Fhue_foh_4button_custom%2Fhue_foh_4button_custom.yaml
 
 ## Repository layout

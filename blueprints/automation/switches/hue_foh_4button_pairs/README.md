@@ -6,6 +6,10 @@ The buttons work as two on/off pairs, and holding a button dims or brightens.
 For your own actions on every button and event, or several switches in one automation, see
 [Friends of Hue 4-button custom](../hue_foh_4button_custom/).
 
+Its custom-action inputs are based on the "all functions" blueprint by
+[Khvej8](https://community.home-assistant.io/u/khvej8) from the
+[Home Assistant Community thread](https://community.home-assistant.io/t/499450/32).
+
 | Pair | On / hold to brighten   | Off / hold to dim       |
 | ---- | ----------------------- | ----------------------- |
 | 1    | Button 1 (upper left)   | Button 3 (upper right)  |

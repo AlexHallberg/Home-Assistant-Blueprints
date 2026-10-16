@@ -1,5 +1,10 @@
 # Changelog
 
+## v2026.10.1 - 2026-10-16
+
+- Changed: marked as a fork of Khvej8's "all functions" blueprint, and `author` now names
+  Khvej8. No change to how it behaves.
+
 ## v2026.10.0 - 2026-10-16
 
 First release in this repository.

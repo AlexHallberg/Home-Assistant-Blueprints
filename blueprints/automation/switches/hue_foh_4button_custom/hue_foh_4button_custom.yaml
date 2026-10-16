@@ -1,8 +1,12 @@
 blueprint:
-  name: Hue, Friends Of Hue switch, 4 button, all functions v2026.10.0
+  name: Hue, Friends Of Hue switch, 4 button, all functions v2026.10.1
   description: >
-    Version v2026.10.0. See the
+    Version v2026.10.1. See the
     [changelog](https://github.com/AlexHallberg/Home-Assistant-Blueprints/blob/main/blueprints/automation/switches/hue_foh_4button_custom/CHANGELOG.md).
+
+    Fork of the "all functions" blueprint by
+    [Khvej8](https://community.home-assistant.io/u/khvej8), from the
+    [Home Assistant Community thread](https://community.home-assistant.io/t/499450/32).
 
     HA version 2023.08 or newer
 
@@ -12,7 +16,7 @@ blueprint:
 
     If multiple switches need the same functionality, select multiple
 
-  author: Alexander Hallberg (https://github.com/AlexHallberg)
+  author: Khvej8 (https://community.home-assistant.io/u/khvej8)
   homeassistant:
     min_version: 2023.8.0
   domain: automation
