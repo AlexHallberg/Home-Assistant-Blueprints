@@ -14,15 +14,11 @@ authors with local changes.
 
 | Blueprint | Type | Category | Origin | Import |
 | --------- | ---- | -------- | ------ | ------ |
-| [Auto-update](blueprints/automation/system/auto_update_scheduled/) | Automation | System | Fork of [edwardtfn][upstream-auto-update] | [![Import][import-badge]][import-auto-update] |
-| [Friends of Hue pairs](blueprints/automation/switches/hue_foh_4button_pairs/) | Automation | Switches | Own | [![Import][import-badge]][import-hue-foh] |
-| [Friends of Hue double click](blueprints/automation/switches/hue_foh_4button_double_tap/) | Automation | Switches | Own | [![Import][import-badge]][import-hue-foh-double] |
+| [Auto-update](blueprints/automation/system/auto_update_scheduled/) | Automation | System | Fork of [edwardtfn][upstream-auto-update] | <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FAlexHallberg%2FHome-Assistant-Blueprints%2Fmain%2Fblueprints%2Fautomation%2Fsystem%2Fauto_update_scheduled%2Fauto_update_scheduled.yaml"><img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Import blueprint" width="197" height="32"></a> |
+| [Friends of Hue pairs](blueprints/automation/switches/hue_foh_4button_pairs/) | Automation | Switches | Own | <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FAlexHallberg%2FHome-Assistant-Blueprints%2Fmain%2Fblueprints%2Fautomation%2Fswitches%2Fhue_foh_4button_pairs%2Fhue_foh_4button_pairs.yaml"><img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Import blueprint" width="197" height="32"></a> |
+| [Friends of Hue double click](blueprints/automation/switches/hue_foh_4button_double_tap/) | Automation | Switches | Own | <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FAlexHallberg%2FHome-Assistant-Blueprints%2Fmain%2Fblueprints%2Fautomation%2Fswitches%2Fhue_foh_4button_double_tap%2Fhue_foh_4button_double_tap.yaml"><img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Import blueprint" width="197" height="32"></a> |
 
-[import-badge]: https://my.home-assistant.io/badges/blueprint_import.svg
 [upstream-auto-update]: https://github.com/edwardtfn/ha_auto_update_scheduled
-[import-auto-update]: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FAlexHallberg%2FHome-Assistant-Blueprints%2Fmain%2Fblueprints%2Fautomation%2Fsystem%2Fauto_update_scheduled%2Fauto_update_scheduled.yaml
-[import-hue-foh]: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FAlexHallberg%2FHome-Assistant-Blueprints%2Fmain%2Fblueprints%2Fautomation%2Fswitches%2Fhue_foh_4button_pairs%2Fhue_foh_4button_pairs.yaml
-[import-hue-foh-double]: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FAlexHallberg%2FHome-Assistant-Blueprints%2Fmain%2Fblueprints%2Fautomation%2Fswitches%2Fhue_foh_4button_double_tap%2Fhue_foh_4button_double_tap.yaml
 
 ## Repository layout
 

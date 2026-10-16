@@ -1,4 +1,7 @@
 {
-    "MD013": { "line_length": 200 }
+    // Long lines are fine in tables, which can't wrap.
+    "MD013": { "line_length": 200, "tables": false },
+    // The blueprint index uses <a><img width height></a> so the import badges keep their size
+    // in table cells (GitHub otherwise shrinks them in some browsers).
+    "MD033": { "allowed_elements": ["a", "img"] }
 }
- 
