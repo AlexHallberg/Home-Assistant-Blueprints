@@ -20,6 +20,7 @@ does **not** apply to this folder; the original work remains Edward Firmo's.
 ## Changes in this fork
 
 - `source_url` and the README import badge point at this repository.
+- A fork notice was added to the file header, the blueprint description and the README.
 - Upstream's `.github` and `.rules` folders were moved to the repository root.
 
 ## Pulling upstream changes

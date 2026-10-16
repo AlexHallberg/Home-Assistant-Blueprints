@@ -1,5 +1,9 @@
 # Home Assistant - Auto update (scheduled)
 
+> [!NOTE]
+> This is a fork of [ha_auto_update_scheduled](https://github.com/edwardtfn/ha_auto_update_scheduled)
+> by [Edward Firmo](https://github.com/edwardtfn). See [UPSTREAM.md](UPSTREAM.md) for details.
+
 ## What is this?
 A Home Assistant blueprint to assist keeping the system automatically updated with the latest version of it's multiple components.
 

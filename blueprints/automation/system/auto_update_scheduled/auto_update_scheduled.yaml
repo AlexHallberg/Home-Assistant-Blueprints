@@ -32,6 +32,9 @@ blueprint:
 
     Update Home Assistant automatically when a new update is available.
 
+    Fork of [edwardtfn/ha_auto_update_scheduled](https://github.com/edwardtfn/ha_auto_update_scheduled)
+    by [Edward Firmo](https://github.com/edwardtfn).
+
     ## v2026.6.0
 
     ## Attention:
