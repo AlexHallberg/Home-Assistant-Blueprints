@@ -16,15 +16,12 @@ authors with local changes.
 | --------- | ---- | -------- | ------ | ------ |
 | [Auto-update on a schedule](blueprints/automation/system/auto_update_scheduled/) | Automation | System | Fork of [edwardtfn][upstream-auto-update] | [![Import][import-badge]][import-auto-update] |
 | [Friends of Hue pairs](blueprints/automation/switches/hue_foh_4button_pairs/) | Automation | Switches | Own | [![Import][import-badge]][import-hue-foh] |
-| [Friends of Hue custom](blueprints/automation/switches/hue_foh_4button_custom/) | Automation | Switches | Fork of [Khvej8][khvej8] | [![Import][import-badge]][import-hue-foh-custom] |
 | [Friends of Hue double click](blueprints/automation/switches/hue_foh_4button_double_tap/) | Automation | Switches | Own | [![Import][import-badge]][import-hue-foh-double] |
 
 [import-badge]: https://my.home-assistant.io/badges/blueprint_import.svg
 [upstream-auto-update]: https://github.com/edwardtfn/ha_auto_update_scheduled
 [import-auto-update]: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FAlexHallberg%2FHome-Assistant-Blueprints%2Fmain%2Fblueprints%2Fautomation%2Fsystem%2Fauto_update_scheduled%2Fauto_update_scheduled.yaml
 [import-hue-foh]: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FAlexHallberg%2FHome-Assistant-Blueprints%2Fmain%2Fblueprints%2Fautomation%2Fswitches%2Fhue_foh_4button_pairs%2Fhue_foh_4button_pairs.yaml
-[khvej8]: https://community.home-assistant.io/t/499450/32
-[import-hue-foh-custom]: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FAlexHallberg%2FHome-Assistant-Blueprints%2Fmain%2Fblueprints%2Fautomation%2Fswitches%2Fhue_foh_4button_custom%2Fhue_foh_4button_custom.yaml
 [import-hue-foh-double]: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FAlexHallberg%2FHome-Assistant-Blueprints%2Fmain%2Fblueprints%2Fautomation%2Fswitches%2Fhue_foh_4button_double_tap%2Fhue_foh_4button_double_tap.yaml
 
 ## Repository layout

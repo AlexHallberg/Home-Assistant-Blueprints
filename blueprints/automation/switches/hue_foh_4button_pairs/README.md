@@ -3,10 +3,10 @@
 Controls lights from one 4-button Friends of Hue switch connected through the Hue bridge.
 The buttons work as two on/off pairs, and holding a button dims or brightens.
 
-For your own actions on every button and event, or several switches in one automation, see
-[Friends of Hue 4-button custom](../hue_foh_4button_custom/).
+For your own single-click, double-click and hold actions on every button, see
+[Friends of Hue single + double click + hold](../hue_foh_4button_double_tap/).
 
-Its custom-action inputs are based on the "all functions" blueprint by
+This blueprint's custom-action inputs are based on the "all functions" blueprint by
 [Khvej8](https://community.home-assistant.io/u/khvej8) from the
 [Home Assistant Community thread](https://community.home-assistant.io/t/499450/32).
 
