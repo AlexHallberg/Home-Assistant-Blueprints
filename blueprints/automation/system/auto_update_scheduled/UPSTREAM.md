@@ -21,6 +21,13 @@ does **not** apply to this folder; the original work remains Edward Firmo's.
 
 - `source_url` and the README import badge point at this repository.
 - A fork notice was added to the file header, the blueprint description and the README.
+- Every condition and action has an `alias`, so traces show readable step names. Repeated
+  conditions and notification steps are shared through YAML anchors.
+- New optional install log and error log (File integration notify entities), with the
+  `install_log_section` inputs.
+
+Because of the aliases, almost every block in the blueprint differs from upstream, so
+`git subtree pull` will conflict heavily. Expect to port upstream fixes by hand.
 - Upstream's `.github` and `.rules` folders were moved to the repository root.
 
 ## Pulling upstream changes

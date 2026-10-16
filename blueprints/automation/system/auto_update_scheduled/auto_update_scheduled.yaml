@@ -711,6 +711,56 @@ blueprint:
                 - label: Done (includes remaining updates)
                   value: done
 
+    install_log_section:
+      name: Install log (optional)
+      icon: mdi:file-document-outline
+      description: >
+        Write a plain-text log of what was found, what was installed, and any errors to a file.
+        Nothing is written on runs where there is nothing to update.
+      collapsed: true
+      input:
+        install_log_entity:
+          name: Install log file
+          description: |
+            `Optional`
+
+            Select a notify entity from the [File](https://www.home-assistant.io/integrations/file/) integration.
+            Each run appends the updates it found, each install with its versions, any errors,
+            restarts, and a summary line.
+
+            To create one, add the File integration under
+            [Settings > Devices & Services](https://my.home-assistant.io/redirect/config_flow_start/?domain=file),
+            choose "Set up a notification service", enter a path such as `/config/auto_update.log`,
+            and leave "Timestamp" off (this blueprint writes its own timestamps).
+
+            The file's folder must be listed under `allowlist_external_dirs` in `configuration.yaml`.
+
+            Leave empty to disable the install log.
+          default: []
+          selector:
+            entity:
+              multiple: false
+              domain: notify
+              integration: file
+
+        error_log_entity:
+          name: Error log file
+          description: |
+            `Optional`
+
+            Select a second File notify entity to receive a copy of every error and warning,
+            for example `/config/auto_update_errors.log`.
+
+            Errors are always written to the install log as well.
+
+            Leave empty to keep errors in the install log only.
+          default: []
+          selector:
+            entity:
+              multiple: false
+              domain: notify
+              integration: file
+
     general_settings:
       name: General settings (optional)
       icon: mdi:cog
@@ -854,21 +904,29 @@ trigger:
     to: "idle"
 
 condition:
-  - condition: or
+  - alias: There is a reason to run
+    condition: or
     conditions:
-      - condition: trigger
+      - alias: Backup sensor has recovered
+        condition: trigger
         id: "Backup sensor recovered"
-      - condition: trigger
+      - alias: An out-of-schedule entity has an update
+        condition: trigger
         id: "Out of schedule"
-      - condition: and
+      - alias: Restarted or reloaded with out-of-schedule updates pending
+        condition: and
         conditions:
-          - condition: or
+          - alias: Triggered by Home Assistant start or automation reload
+            condition: or
             conditions:
-              - condition: trigger
+              - alias: Home Assistant started
+                condition: trigger
                 id: "HA Start"
-              - condition: trigger
+              - alias: Automations were reloaded
+                condition: trigger
                 id: "Automations reloaded"
-          - condition: template
+          - alias: Out-of-schedule entities have pending updates
+            condition: template
             value_template: >-
               {{
                 states.update
@@ -879,12 +937,15 @@ condition:
                 | rejectattr("entity_id", "in", input_update_exclusions)
                 | list | count | int(0) > 0
               }}
-      - condition: and
+      - alias: Inside the schedule with pending updates
+        condition: and
         conditions:
-          - condition: state
+          - alias: Schedule is on
+            condition: state
             entity_id: !input schedule_entity
             state: 'on'
-          - condition: template
+          - alias: There are installable updates
+            condition: template
             value_template: >-
               {{
                 states.update
@@ -894,30 +955,42 @@ condition:
                 | rejectattr("entity_id", "in", input_update_exclusions)
                 | list | count | int(0) > 0
               }}
-      - condition: and
+      - alias: Resuming an update run after a restart
+        condition: and
         conditions:
-          - condition: trigger
+          - alias: Home Assistant started
+            condition: trigger
             id: "HA Start"
-          - '{{ input_update_process_started_entity | default([]) | count == 1 }}'
-          - condition: state
+          - alias: Update process toggle is configured
+            condition: template
+            value_template: '{{ input_update_process_started_entity | default([]) | count == 1 }}'
+          - alias: Update process toggle is on (a run was in progress)
+            condition: state
             entity_id: !input update_process_started_entity
             state: "on"
 
-  - condition: or
+  - alias: Today is an allowed day of the month
+    condition: or
     conditions:
-      - condition: trigger
+      - alias: Out-of-schedule updates ignore the day of month
+        condition: trigger
         id: "Out of schedule"
-      - condition: template
+      - alias: Today is within the earliest and last day of the month
+        condition: template
         value_template: >
           {{
             (now().day >= input_schedule_monthday_earliest or input_schedule_monthday_earliest == 0) and
             (now().day <= input_schedule_monthday_last or input_schedule_monthday_last == 0)
           }}
 
-  - condition: or
+  - alias: Updates are not paused
+    condition: or
     conditions:
-      - "{{ input_pause_entities | default([]) | list | count | int(0) < 1 }}"
-      - condition: state
+      - alias: No pause entities are configured
+        condition: template
+        value_template: "{{ input_pause_entities | default([]) | list | count | int(0) < 1 }}"
+      - alias: Pause entities are off
+        condition: state
         entity_id: !input pause_entities
         state: 'off'
 
@@ -937,9 +1010,13 @@ variables:
   input_general_update_mode: !input general_update_mode
   input_update_inclusion_mode: !input update_inclusion_mode
   input_minimum_patch_version: !input minimum_patch_version
+  input_update_timeout: !input update_timeout
+  input_schedule_entity: !input schedule_entity
   input_notification_entity: !input notification_entity
   input_notification_select_notifications: !input notification_select_notifications
   input_notification_message_title: !input notification_message_title
+  input_install_log_entity: !input install_log_entity
+  input_error_log_entity: !input error_log_entity
   core_update_entity: >
     {% for u in integration_entities('hassio') | select('search', '^update[.]')
       if (device_attr(u, 'identifiers') | first | default(""))[1] == 'core' %}
@@ -1018,6 +1095,7 @@ action:
     continue_on_error: true
 
   - &recalc_update_list
+    alias: Calculate the list of pending updates
     variables:
       firmware_update_entities: >
         {% if is_out_of_schedule_mode %}
@@ -1267,17 +1345,24 @@ action:
       pending_update_list: '{{ updates_pending }}'
       updates_pending_count: '{{ updates_pending | list | count | int(0) }}'
 
-  - variables:
+  - alias: Snapshot the updates found at the start of the run
+    variables:
       update_list: '{{ updates_pending }}'
       updates_list: '{{ updates_pending }}'
       is_there_anything_to_update: '{{ updates_pending_count > 0 }}'
+      install_log_found_entities: '{{ updates_pending }}'
 
   - alias: Preparation  # Inform logbook and notify which update automation is running
     sequence:
-      - variables:
+      - alias: Set log message (starting)
+        variables:
           log_message: '{{ friendly_name }} is {{ "re" if is_resume_after_restart else ""}}starting'
       - &logbook_update
-        if: '{{ input_verbose_logging_bool }}'
+        alias: Write to logbook (if verbose logging is on)
+        if:
+          - alias: Verbose logging is on
+            condition: template
+            value_template: '{{ input_verbose_logging_bool }}'
         then:
           - alias: Logbook - Update
             action: logbook.log
@@ -1290,16 +1375,24 @@ action:
 
   - alias: Report list of updates  # Combined starting + list of updates notification
     if:
-      - '{{ is_there_anything_to_update }}'
-      - condition: or
+      - &cond_updates_found
+        alias: Updates were found
+        condition: template
+        value_template: '{{ is_there_anything_to_update }}'
+      - &cond_in_update_window
+        alias: Inside the schedule, or running out-of-schedule updates
+        condition: or
         conditions:
-          - condition: template
+          - alias: Running out-of-schedule updates
+            condition: template
             value_template: '{{ is_out_of_schedule_mode }}'
-          - condition: state
+          - alias: Schedule is on
+            condition: state
             entity_id: !input schedule_entity
             state: 'on'
     then:
-      - variables:
+      - alias: Set log message (list of updates)
+        variables:
           log_message: >
             {{ friendly_name }} is {{ "re" if is_resume_after_restart else "" }}starting
 
@@ -1311,13 +1404,71 @@ action:
                 | rejectattr('entity_id', 'in', input_update_exclusions)
                 | map(attribute='name') | list | join("\n- ") }}
       - *logbook_update
-      - if: '{{ "starting" in input_notification_select_notifications }}'
+      - alias: Set install log entry (updates found)
+        variables:
+          install_log_is_error: false
+          install_log_message: |-
+            {%- set found = states.update
+                | selectattr('state', 'eq', 'on')
+                | selectattr('entity_id', 'in', updates_pending)
+                | rejectattr('entity_id', 'in', input_update_exclusions)
+                | list -%}
+            {{ "Resumed after restart, found" if is_resume_after_restart else "Found" }}
+            {{- " " ~ (found | count) }} update{{ "s" if found | count != 1 }}:
+            {%- for u in found %}
+              - {{ u.name }}: {{ u.attributes.installed_version | default("?", true) }} -> {{ u.attributes.latest_version | default("?", true) }}
+            {%- endfor %}
+      - &write_install_log
+        alias: Write to install log
+        sequence:
+          - alias: Build the install log line
+            variables:
+              install_log_line: >-
+                {{ now().strftime("%Y-%m-%d %H:%M:%S") }} [{{ friendly_name }}]
+                {{- " ERROR:" if install_log_is_error else "" }} {{ install_log_message }}
+          - alias: Append to install log file (if configured)
+            if:
+              - alias: Install log file is configured
+                condition: template
+                value_template: '{{ input_install_log_entity is string and input_install_log_entity | length > 0 }}'
+            then:
+              - alias: Install log - Append entry
+                action: notify.send_message
+                target:
+                  entity_id: '{{ input_install_log_entity }}'
+                data:
+                  message: '{{ install_log_line }}'
+                continue_on_error: true
+          - alias: Append to error log file (if this is an error and it is configured)
+            if:
+              - alias: This entry is an error
+                condition: template
+                value_template: '{{ install_log_is_error }}'
+              - alias: Error log file is configured
+                condition: template
+                value_template: '{{ input_error_log_entity is string and input_error_log_entity | length > 0 }}'
+            then:
+              - alias: Error log - Append entry
+                action: notify.send_message
+                target:
+                  entity_id: '{{ input_error_log_entity }}'
+                data:
+                  message: '{{ install_log_line }}'
+                continue_on_error: true
+      - alias: Send starting notification (if selected)
+        if:
+          - alias: Starting notifications are selected
+            condition: template
+            value_template: '{{ "starting" in input_notification_select_notifications }}'
         then:
           - &send_notification
+            alias: Send notification
             sequence:
-              - variables:
+              - alias: Set notification message
+                variables:
                   notification_message: '{{ log_message }}'
-              - if:
+              - alias: Send notification (if a notify entity is configured)
+                if:
                   - condition: template
                     value_template: '{{ input_notification_entity | length > 0 }}'
                     alias: Check if notification entity is configured
@@ -1334,40 +1485,50 @@ action:
         continue_on_error: true
         sequence: !input notification_action_starting
     else:
-      - variables:
+      - alias: Set log message (nothing to update)
+        variables:
           log_message: "{{ friendly_name }} started but there's nothing to update"
       - *logbook_update
 
   - alias: Set ON helper flag
     if:
-      - '{{ input_update_process_started_entity | default([]) | count > 0 }}'
-      - '{{ input_update_process_started_entity[0] | string | length > 0 }}'
-      - condition: state
+      - &cond_helper_flag_configured
+        alias: Update process toggle is configured
+        condition: template
+        value_template: >-
+          {{
+            input_update_process_started_entity | default([]) | count > 0 and
+            input_update_process_started_entity[0] | string | length > 0
+          }}
+      - alias: Schedule is on
+        condition: state
         entity_id: !input schedule_entity
         state: 'on'
     then:
-      - action: input_boolean.turn_on
+      - alias: Turn on the update process toggle
+        action: input_boolean.turn_on
         target:
           entity_id: !input update_process_started_entity
         continue_on_error: true
 
   - alias: Pre-update actions
     if:
-      - '{{ is_there_anything_to_update }}'
-      - condition: or
-        conditions:
-          - condition: template
-            value_template: '{{ is_out_of_schedule_mode }}'
-          - condition: state
-            entity_id: !input schedule_entity
-            state: 'on'
-      - '{{ not is_resume_after_restart }}'
+      - *cond_updates_found
+      - *cond_in_update_window
+      - &cond_not_resuming
+        alias: Not resuming after a restart
+        condition: template
+        value_template: '{{ not is_resume_after_restart }}'
     then:
-      - variables:
+      - alias: Read the pre-update actions input
+        variables:
           input_actions_pre_update: !input actions_pre_update
-      - condition: '{{ input_actions_pre_update is sequence }}'
+      - alias: Pre-update actions are configured
+        condition: template
+        value_template: '{{ input_actions_pre_update is sequence }}'
       - *recalc_update_list
-      - variables:
+      - alias: Set log message (running pre-update actions)
+        variables:
           log_message: 'Running pre-update actions...'
       - *logbook_update
 
@@ -1375,64 +1536,89 @@ action:
         continue_on_error: true
         sequence: !input actions_pre_update
 
-      - variables:
+      - alias: Set log message (pre-update actions completed)
+        variables:
           log_message: "Pre-update actions completed"
       - *logbook_update
 
   - alias: Wait for backup system to be idle  # Wait if a backup is already in progress
     if:
-      - '{{ is_there_anything_to_update }}'
-      - condition: or
-        conditions:
-          - condition: template
-            value_template: '{{ is_out_of_schedule_mode }}'
-          - condition: state
-            entity_id: !input schedule_entity
-            state: 'on'
+      - *cond_updates_found
+      - *cond_in_update_window
     then:
-      - variables:
+      - alias: Read the backup inputs
+        variables:
           input_run_during_backup: !input run_during_backup
           input_backup_timeout_minutes: !input backup_timeout
           input_backup_timeout: '{{ input_backup_timeout_minutes | int(60) }}'
-      - if:
-          - '{{ input_run_during_backup is string and input_run_during_backup | length > 0 }}'
-          - '{{ not is_state(input_run_during_backup, "idle") }}'
+      - alias: Wait if a backup is already running
+        if:
+          - alias: Backup state sensor is configured
+            condition: template
+            value_template: '{{ input_run_during_backup is string and input_run_during_backup | length > 0 }}'
+          - alias: Backup system is not idle
+            condition: template
+            value_template: '{{ not is_state(input_run_during_backup, "idle") }}'
         then:
-          - if: >-
-              {{
-                is_state(input_run_during_backup, "unknown") or
-                is_state(input_run_during_backup, "unavailable")
-              }}
+          - alias: Stop if the backup state sensor is unavailable
+            if:
+              - alias: Backup state sensor is unknown or unavailable
+                condition: template
+                value_template: >-
+                  {{
+                    is_state(input_run_during_backup, "unknown") or
+                    is_state(input_run_during_backup, "unavailable")
+                  }}
             then:
-              - variables:
+              - alias: Set log message (backup sensor unavailable)
+                variables:
                   log_message: >
                     Backup state sensor is {{ states(input_run_during_backup) }}.
                     Cannot determine if a backup is in progress. Stopping.
               - *logbook_update
-              - if: >-
-                  {{
-                    "backup" in input_notification_select_notifications or
-                    "errors" in input_notification_select_notifications
-                  }}
+              - &install_log_error_from_log_message
+                alias: Write the log message to the install log as an error
+                sequence:
+                  - alias: Set install log entry (error)
+                    variables:
+                      install_log_is_error: true
+                      install_log_message: '{{ log_message | trim }}'
+                  - *write_install_log
+              - &send_backup_or_error_notification
+                alias: Send backup/error notification (if selected)
+                if:
+                  - alias: Backup or error notifications are selected
+                    condition: template
+                    value_template: >-
+                      {{
+                        "backup" in input_notification_select_notifications or
+                        "errors" in input_notification_select_notifications
+                      }}
                 then:
                   - *send_notification
               - &reset_helper_flag
                 alias: "Reset helper flag before stopping"
                 if:
-                  - '{{ input_update_process_started_entity | default([]) | count > 0 }}'
-                  - '{{ input_update_process_started_entity[0] | string | length > 0 }}'
+                  - *cond_helper_flag_configured
                 then:
-                  - action: input_boolean.turn_off
+                  - alias: Turn off the update process toggle
+                    action: input_boolean.turn_off
                     target:
                       entity_id: !input update_process_started_entity
                     continue_on_error: true
               - stop: "Backup state sensor is unavailable"
-          - variables:
+          - alias: Set log message (backup system busy)
+            variables:
               log_message: >
                 Backup system is busy ({{ states(input_run_during_backup) }}).
                 Waiting up to {{ input_backup_timeout }} minutes for it to become idle...
           - *logbook_update
-          - if: '{{ "backup" in input_notification_select_notifications }}'
+          - &send_backup_notification
+            alias: Send backup notification (if selected)
+            if:
+              - alias: Backup notifications are selected
+                condition: template
+                value_template: '{{ "backup" in input_notification_select_notifications }}'
             then:
               - *send_notification
           - alias: "Wait for backup system to become idle"
@@ -1443,35 +1629,30 @@ action:
             continue_on_timeout: true
             timeout:
               minutes: "{{ input_backup_timeout | int(60) }}"
-          - if: '{{ not is_state(input_run_during_backup, "idle") }}'
+          - alias: Stop if the backup system is still busy
+            if:
+              - alias: Backup system is still not idle
+                condition: template
+                value_template: '{{ not is_state(input_run_during_backup, "idle") }}'
             then:
-              - variables:
+              - alias: Set log message (backup system still busy)
+                variables:
                   log_message: "Backup system did not become idle in time. Stopping."
               - *logbook_update
-              - if: >-
-                  {{
-                    "backup" in input_notification_select_notifications or
-                    "errors" in input_notification_select_notifications
-                  }}
-                then:
-                  - *send_notification
+              - *install_log_error_from_log_message
+              - *send_backup_or_error_notification
               - *reset_helper_flag
               - stop: "Backup system did not become idle in time"
 
   - alias: Backup
     if:
-      - '{{ is_there_anything_to_update }}'
-      - condition: or
-        conditions:
-          - condition: template
-            value_template: '{{ is_out_of_schedule_mode }}'
-          - condition: state
-            entity_id: !input schedule_entity
-            state: 'on'
-      - '{{ not is_resume_after_restart }}'
+      - *cond_updates_found
+      - *cond_in_update_window
+      - *cond_not_resuming
     then:
       - *recalc_update_list
-      - variables:
+      - alias: Read the backup inputs
+        variables:
           input_backup_mode: !input backup_mode
           input_backup_timeout_minutes: !input backup_timeout
           input_backup_timeout: '{{ input_backup_timeout_minutes | int(60) }}'
@@ -1490,23 +1671,36 @@ action:
 
       - alias: Backup section
         if:
-          - '{{ input_backup_mode != "never" }}'
+          - alias: Backup mode is not "never"
+            condition: template
+            value_template: '{{ input_backup_mode != "never" }}'
         then:
           - alias: Validate auto mode prerequisites
             if:
-              - '{{ input_backup_mode == "auto" }}'
-              - >-
-                {{
-                  (input_run_during_backup is not string or input_run_during_backup | length == 0) or
-                  (input_last_backup_timestamp_entity is not string or input_last_backup_timestamp_entity | length == 0)
-                }}
+              - alias: Backup mode is "auto"
+                condition: template
+                value_template: '{{ input_backup_mode == "auto" }}'
+              - alias: Backup state sensor or last backup sensor is missing
+                condition: template
+                value_template: >-
+                  {{
+                    (input_run_during_backup is not string or input_run_during_backup | length == 0) or
+                    (input_last_backup_timestamp_entity is not string or input_last_backup_timestamp_entity | length == 0)
+                  }}
             then:
-              - variables:
+              - alias: Set log message (auto backup misconfigured)
+                variables:
                   log_message: >
                     ERROR: Auto backup mode requires both the Backup state sensor and
                     Last successful automatic backup sensor to be configured. Stopping.
               - *logbook_update
-              - if: '{{ "errors" in input_notification_select_notifications }}'
+              - *install_log_error_from_log_message
+              - &send_error_notification
+                alias: Send error notification (if selected)
+                if:
+                  - alias: Error notifications are selected
+                    condition: template
+                    value_template: '{{ "errors" in input_notification_select_notifications }}'
                 then:
                   - *send_notification
               - alias: "Run custom error actions (backup misconfigured)"
@@ -1537,11 +1731,19 @@ action:
 
           - alias: Log backup age check result (auto mode)
             if:
-              - '{{ input_backup_mode == "auto" }}'
+              - alias: Backup mode is "auto"
+                condition: template
+                value_template: '{{ input_backup_mode == "auto" }}'
             then:
-              - if: '{{ needs_backup }}'
+              - alias: Log whether a backup is needed
+                if:
+                  - &cond_needs_backup
+                    alias: A backup is needed
+                    condition: template
+                    value_template: '{{ needs_backup }}'
                 then:
-                  - variables:
+                  - alias: Set log message (backup needed)
+                    variables:
                       log_message: >
                         {% set last_backup_state = states(input_last_backup_timestamp_entity) %}
                         {% if last_backup_state in ["unknown", "unavailable", ""] or
@@ -1554,32 +1756,39 @@ action:
                         {% endif %}
                   - *logbook_update
                 else:
-                  - variables:
+                  - alias: Set log message (recent backup found)
+                    variables:
                       log_message: "Recent backup detected. Skipping backup creation."
                   - *logbook_update
 
           - alias: "Create backup"
             continue_on_error: true
             if:
-              - '{{ needs_backup }}'
-              - >-
-                {{
-                  input_update_process_started_entity | default([]) | count < 1 or
-                  is_state(input_update_process_started_entity | first | default(""), "off")
-                }}
+              - *cond_needs_backup
+              - alias: No backup has been made yet in this update window
+                condition: template
+                value_template: >-
+                  {{
+                    input_update_process_started_entity | default([]) | count < 1 or
+                    is_state(input_update_process_started_entity | first | default(""), "off")
+                  }}
             then:
-              - if: '{{ input_update_process_started_entity | default([]) | count > 0 }}'
+              - alias: Turn on the update process toggle (if configured)
+                if:
+                  - alias: Update process toggle is configured
+                    condition: template
+                    value_template: '{{ input_update_process_started_entity | default([]) | count > 0 }}'
                 then:
-                  - action: input_boolean.turn_on
+                  - alias: Turn on the update process toggle
+                    action: input_boolean.turn_on
                     target:
                       entity_id: "{{ input_update_process_started_entity }}"
                     continue_on_error: true
-              - variables:
+              - alias: Set log message (backing up)
+                variables:
                   log_message: "Backing up Home Assistant"
               - *logbook_update
-              - if: '{{ "backup" in input_notification_select_notifications }}'
-                then:
-                  - *send_notification
+              - *send_backup_notification
               - alias: "Run custom backup actions (starting)"
                 continue_on_error: true
                 sequence: !input notification_action_backup
@@ -1613,25 +1822,35 @@ action:
 
               - alias: "Wait for backup to complete"
                 if:
-                  - '{{ is_backup_confirmed }}'
+                  - alias: Backup confirmed by a new timestamp
+                    condition: template
+                    value_template: '{{ is_backup_confirmed }}'
                 then:  # Backup already confirmed by a new timestamp, no need to wait
                   - &backup_completed
                     alias: "Backup completed"
                     sequence:
-                      - variables:
+                      - alias: Set log message (backup completed)
+                        variables:
                           log_message: "Backup completed successfully"
                       - *logbook_update
-                      - if: '{{ "backup" in input_notification_select_notifications }}'
-                        then:
-                          - *send_notification
+                      - alias: Set install log entry (backup completed)
+                        variables:
+                          install_log_is_error: false
+                          install_log_message: "Backup completed"
+                      - *write_install_log
+                      - *send_backup_notification
                       - alias: "Run custom backup actions (completed)"
                         continue_on_error: true
                         sequence: !input notification_action_backup
                 else:  # Not confirmed yet, fall back to the backup state sensor (or to a fixed delay)
-                  - if:
-                      - '{{ input_run_during_backup is string and input_run_during_backup | length > 0 }}'
+                  - alias: Confirm the backup with the backup state sensor
+                    if:
+                      - alias: Backup state sensor is configured
+                        condition: template
+                        value_template: '{{ input_run_during_backup is string and input_run_during_backup | length > 0 }}'
                     then:
-                      - variables:
+                      - alias: Set log message (waiting for backup to start)
+                        variables:
                           log_message: "Backup triggered. Waiting for backup to start..."
                       - *logbook_update
                       - alias: "Wait for backup state to leave idle (confirms backup started)"
@@ -1655,75 +1874,80 @@ action:
                               backup_timestamp_after_wait not in ["unknown", "unavailable", ""] and
                               backup_timestamp_after_wait != backup_timestamp_before
                             }}
-                      - if: '{{ is_backup_confirmed_after_wait }}'
+                      - alias: Check whether the backup finished during the wait
+                        if:
+                          - alias: Backup confirmed by a new timestamp after the wait
+                            condition: template
+                            value_template: '{{ is_backup_confirmed_after_wait }}'
                         then:  # Backup finished during the wait
                           - *backup_completed
                         else:
-                          - if: '{{ is_state(input_run_during_backup, "idle") }}'
+                          - alias: Check whether the backup started
+                            if:
+                              - alias: Backup state sensor never left idle
+                                condition: template
+                                value_template: '{{ is_state(input_run_during_backup, "idle") }}'
                             then:  # Sensor never left idle and no new backup timestamp was detected
-                              - if: '{{ has_backup_timestamp_entity }}'
+                              - alias: Stop, or warn if the backup cannot be confirmed
+                                if:
+                                  - alias: Last backup timestamp sensor is configured
+                                    condition: template
+                                    value_template: '{{ has_backup_timestamp_entity }}'
                                 then:  # Timestamp sensor available, so this is a genuine failure
-                                  - variables:
+                                  - alias: Set log message (no backup detected)
+                                    variables:
                                       log_message: >
                                         ERROR: No backup was detected within 30 seconds and the
                                         "Last successful automatic backup" sensor did not change.
                                         Stopping to avoid running updates without a backup.
                                   - *logbook_update
-                                  - if: >-
-                                      {{
-                                        "backup" in input_notification_select_notifications or
-                                        "errors" in input_notification_select_notifications
-                                      }}
-                                    then:
-                                      - *send_notification
+                                  - *install_log_error_from_log_message
+                                  - *send_backup_or_error_notification
                                   - alias: "Run custom error actions (backup may not have started)"
                                     continue_on_error: true
                                     sequence: !input notification_action_errors
                                   - *reset_helper_flag
                                   - stop: "Backup did not start"
                                 else:  # Without the timestamp sensor the backup cannot be confirmed
-                                  - variables:
+                                  - alias: Set log message (backup not confirmed)
+                                    variables:
                                       log_message: >
                                         WARNING: The backup state sensor is still idle.
                                         The backup has probably completed during the service call,
                                         but this cannot be confirmed without the
                                         "Last successful automatic backup" sensor. Continuing with updates...
                                   - *logbook_update
-                                  - if: >-
-                                      {{
-                                        "backup" in input_notification_select_notifications or
-                                        "errors" in input_notification_select_notifications
-                                      }}
-                                    then:
-                                      - *send_notification
+                                  - *install_log_error_from_log_message
+                                  - *send_backup_or_error_notification
                                   - alias: "Run custom error actions (backup could not be confirmed)"
                                     continue_on_error: true
                                     sequence: !input notification_action_errors
                             else:  # Backup is still running
-                              - if: >-
-                                  {{
-                                    is_state(input_run_during_backup, "unknown") or
-                                    is_state(input_run_during_backup, "unavailable")
-                                  }}
+                              - alias: Stop if the backup state sensor became unavailable
+                                if:
+                                  - alias: Backup state sensor is unknown or unavailable
+                                    condition: template
+                                    value_template: >-
+                                      {{
+                                        is_state(input_run_during_backup, "unknown") or
+                                        is_state(input_run_during_backup, "unavailable")
+                                      }}
                                 then:
-                                  - variables:
+                                  - alias: Set log message (backup sensor fault)
+                                    variables:
                                       log_message: >
                                         ERROR: Backup state sensor changed to {{ states(input_run_during_backup) }}
                                         instead of a backup state. Stopping.
                                   - *logbook_update
-                                  - if: >-
-                                      {{
-                                        "backup" in input_notification_select_notifications or
-                                        "errors" in input_notification_select_notifications
-                                      }}
-                                    then:
-                                      - *send_notification
+                                  - *install_log_error_from_log_message
+                                  - *send_backup_or_error_notification
                                   - alias: "Run custom error actions (backup sensor fault)"
                                     continue_on_error: true
                                     sequence: !input notification_action_errors
                                   - *reset_helper_flag
                                   - stop: "Backup state sensor became unavailable"
-                              - variables:
+                              - alias: Set log message (backup started)
+                                variables:
                                   log_message: >
                                     Backup started ({{ states(input_run_during_backup) }}).
                                     Waiting for backup system to return to idle...
@@ -1736,27 +1960,28 @@ action:
                                 continue_on_timeout: true
                                 timeout:
                                   minutes: "{{ input_backup_timeout | int(60) }}"
-                              - if: '{{ not is_state(input_run_during_backup, "idle") }}'
+                              - alias: Check whether the backup finished in time
+                                if:
+                                  - alias: Backup system is still not idle
+                                    condition: template
+                                    value_template: '{{ not is_state(input_run_during_backup, "idle") }}'
                                 then:
-                                  - variables:
+                                  - alias: Set log message (backup timed out)
+                                    variables:
                                       log_message: >
                                         WARNING: Backup did not complete within {{ input_backup_timeout }} minutes.
                                         Continuing with updates...
                                   - *logbook_update
-                                  - if: >-
-                                      {{
-                                        "backup" in input_notification_select_notifications or
-                                        "errors" in input_notification_select_notifications
-                                      }}
-                                    then:
-                                      - *send_notification
+                                  - *install_log_error_from_log_message
+                                  - *send_backup_or_error_notification
                                   - alias: "Run custom error actions (backup timeout)"
                                     continue_on_error: true
                                     sequence: !input notification_action_errors
                                 else:
                                   - *backup_completed
                     else:  # No backup state sensor configured
-                      - variables:
+                      - alias: Set log message (waiting a fixed time for the backup)
+                        variables:
                           log_message: >
                             Backup triggered.
                             No backup state sensor configured, waiting {{ input_backup_timeout | int(60) }} minutes...
@@ -1764,35 +1989,40 @@ action:
                       - alias: "Wait for the backup (fallback delay)"
                         delay:
                           minutes: "{{ input_backup_timeout | int(60) }}"
-                      - variables:
+                      - alias: Set log message (backup wait finished)
+                        variables:
                           log_message: "Backup wait time finished. Continuing..."
                       - *logbook_update
-                      - if: '{{ "backup" in input_notification_select_notifications }}'
-                        then:
-                          - *send_notification
+                      - alias: Set install log entry (backup started, not confirmed)
+                        variables:
+                          install_log_is_error: false
+                          install_log_message: "Backup started (not confirmed, no backup state sensor configured)"
+                      - *write_install_log
+                      - *send_backup_notification
                       - alias: "Run custom backup actions (fallback wait done)"
                         continue_on_error: true
                         sequence: !input notification_action_backup
 
   - alias: Update generic
     if:
-      - '{{ is_there_anything_to_update }}'
-      - condition: or
-        conditions:
-          - condition: template
-            value_template: '{{ is_out_of_schedule_mode }}'
-          - condition: state
-            entity_id: !input schedule_entity
-            state: 'on'
+      - *cond_updates_found
+      - *cond_in_update_window
     then:
       - *recalc_update_list
-      - variables:
+      - alias: Set log message (update generic items)
+        variables:
           log_message: "Update generic items"
       - *logbook_update
-      - variables:
+      - alias: Set log message (starting standard updates)
+        variables:
           log_message: 'Starting sequence of standard updates...'
       - *logbook_update
-      - if: '{{ "update_progress" in input_notification_select_notifications }}'
+      - &send_update_progress_notification
+        alias: Send update progress notification (if selected)
+        if:
+          - alias: Update progress notifications are selected
+            condition: template
+            value_template: '{{ "update_progress" in input_notification_select_notifications }}'
         then:
           - *send_notification
 
@@ -1800,15 +2030,22 @@ action:
         continue_on_error: true
         repeat:
           while:
-            - "{{ input_general_update_mode in ['patches', 'major_and_minor', 'all'] }}"
-            - condition: or
+            - alias: General updates are enabled
+              condition: template
+              value_template: "{{ input_general_update_mode in ['patches', 'major_and_minor', 'all'] }}"
+            - &cond_still_in_update_window
+              alias: Still inside the schedule, or running out-of-schedule updates
+              condition: or
               conditions:
-                - condition: template
+                - alias: Running out-of-schedule updates
+                  condition: template
                   value_template: '{{ is_out_of_schedule_mode }}'
-                - condition: state
+                - alias: Schedule is on
+                  condition: state
                   entity_id: !input schedule_entity
                   state: "on"
-            - condition: template
+            - alias: General updates are still pending
+              condition: template
               value_template: >
                 {{ ( states.update
                   | selectattr('state', 'eq', 'on')
@@ -1821,7 +2058,8 @@ action:
                   | list | count | int(0) ) > 0
                 }}
           sequence:
-            - variables:
+            - alias: List pending general updates
+              variables:
                 updates_pending: >
                   {{ states.update
                     | selectattr('state', 'eq', 'on')
@@ -1834,20 +2072,29 @@ action:
                     | list
                   }}
             - &get_next_update_entity
+              alias: Pick the next update to install
               variables:
                 current_update_entity: '{{ updates_pending[0] }}'
                 current_update_entity_friendly_name: |
                   {{ state_attr(current_update_entity, "friendly_name") | default(current_update_entity) }}
+                current_update_from_version: '{{ state_attr(current_update_entity, "installed_version") | default("?", true) }}'
+                current_update_to_version: '{{ state_attr(current_update_entity, "latest_version") | default("?", true) }}'
 
             - &log_updating
               alias: Log updating
               sequence:
-                - variables:
+                - alias: Set log message (updating)
+                  variables:
                     log_message: 'Updating "{{ current_update_entity_friendly_name }}"...'
                 - *logbook_update
-                - if: '{{ "update_progress" in input_notification_select_notifications }}'
-                  then:
-                    - *send_notification
+                - alias: Set install log entry (installing)
+                  variables:
+                    install_log_is_error: false
+                    install_log_message: >-
+                      Installing {{ current_update_entity_friendly_name }}:
+                      {{ current_update_from_version }} -> {{ current_update_to_version }}
+                - *write_install_log
+                - *send_update_progress_notification
                 - alias: "Run custom update progress actions"
                   continue_on_error: true
                   sequence: !input notification_action_update_progress
@@ -1868,26 +2115,52 @@ action:
                   wait_template: '{{ is_state(current_update_entity, "off") }}'
                   continue_on_timeout: true
                   timeout: !input update_timeout
-                - if: '{{ wait.completed }}'
+                - alias: Check whether the update finished in time
+                  if:
+                    - alias: Update finished before the timeout
+                      condition: template
+                      value_template: '{{ wait.completed }}'
                   then:
-                    - variables:
+                    - alias: Set log message (update succeeded)
+                      variables:
                         log_message: '"{{ current_update_entity_friendly_name }}" updated successfully'
                     - *logbook_update
-                    - if: '{{ "update_progress" in input_notification_select_notifications }}'
-                      then:
-                        - *send_notification
+                    - alias: Set install log entry (installed)
+                      variables:
+                        install_log_is_error: false
+                        install_log_message: >-
+                          Installed {{ current_update_entity_friendly_name }}:
+                          {{ current_update_from_version }} -> {{
+                            state_attr(current_update_entity, "installed_version") | default(current_update_to_version, true)
+                          }}
+                    - *write_install_log
+                    - *send_update_progress_notification
                     - alias: "Run custom update progress actions (success)"
                       continue_on_error: true
                       sequence: !input notification_action_update_progress
                   else:
-                    - variables:
+                    - alias: Set log message (update timed out)
+                      variables:
                         log_message: 'ERROR: "{{ current_update_entity_friendly_name }}" update timed out'
                     - *logbook_update
-                    - if: >-
-                        {{
-                          "update_progress" in input_notification_select_notifications or
-                          "errors" in input_notification_select_notifications
-                        }}
+                    - alias: Set install log entry (update timed out)
+                      variables:
+                        install_log_is_error: true
+                        install_log_message: >-
+                          {{ current_update_entity_friendly_name }}
+                          {{ current_update_from_version }} -> {{ current_update_to_version }}
+                          did not finish within {{ input_update_timeout }} seconds
+                          (installed version is now {{ state_attr(current_update_entity, "installed_version") | default("?", true) }})
+                    - *write_install_log
+                    - alias: Send update progress/error notification (if selected)
+                      if:
+                        - alias: Update progress or error notifications are selected
+                          condition: template
+                          value_template: >-
+                            {{
+                              "update_progress" in input_notification_select_notifications or
+                              "errors" in input_notification_select_notifications
+                            }}
                       then:
                         - *send_notification
                     - alias: "Run custom error actions (update timeout)"
@@ -1896,40 +2169,31 @@ action:
 
   - alias: Devices firmware
     if:
-      - '{{ is_there_anything_to_update }}'
-      - condition: or
-        conditions:
-          - condition: template
-            value_template: '{{ is_out_of_schedule_mode }}'
-          - condition: state
-            entity_id: !input schedule_entity
-            state: 'on'
+      - *cond_updates_found
+      - *cond_in_update_window
     then:
       - *recalc_update_list
-      - variables:
+      - alias: Set log message (device firmware)
+        variables:
           log_message: "Device's firmware"
       - *logbook_update
 
-      - variables:
+      - alias: Set log message (starting firmware updates)
+        variables:
           log_message: 'Starting sequence of Devices firmware update'
       - *logbook_update
-      - if: '{{ "update_progress" in input_notification_select_notifications }}'
-        then:
-          - *send_notification
+      - *send_update_progress_notification
 
       - alias: "Update - Devices firmware"
         continue_on_error: true
         repeat:
           while:
-            - "{{ input_firmware_update_mode in ['patches', 'major_and_minor', 'all'] }}"
-            - condition: or
-              conditions:
-                - condition: template
-                  value_template: '{{ is_out_of_schedule_mode }}'
-                - condition: state
-                  entity_id: !input schedule_entity
-                  state: "on"
-            - condition: template
+            - alias: Firmware updates are enabled
+              condition: template
+              value_template: "{{ input_firmware_update_mode in ['patches', 'major_and_minor', 'all'] }}"
+            - *cond_still_in_update_window
+            - alias: Firmware updates are still pending
+              condition: template
               value_template: >
                 {{ ( states.update
                   | selectattr('state', 'eq', 'on')
@@ -1939,7 +2203,8 @@ action:
                   | list | count | int(0) ) > 0
                 }}
           sequence:
-            - variables:
+            - alias: List pending firmware updates
+              variables:
                 updates_pending: >
                   {{ states.update
                     | selectattr('state', 'eq', 'on')
@@ -1955,39 +2220,31 @@ action:
 
   - alias: Update core
     if:
-      - '{{ is_there_anything_to_update }}'
-      - condition: or
-        conditions:
-          - condition: template
-            value_template: '{{ is_out_of_schedule_mode }}'
-          - condition: state
-            entity_id: !input schedule_entity
-            state: 'on'
+      - *cond_updates_found
+      - *cond_in_update_window
     then:
       - *recalc_update_list
-      - variables:
+      - alias: Set log message (update core)
+        variables:
           log_message: "Update Core"
       - *logbook_update
-      - variables:
+      - alias: Set log message (starting core updates)
+        variables:
           log_message: 'Starting sequence of core items updates...'
       - *logbook_update
-      - if: '{{ "update_progress" in input_notification_select_notifications }}'
-        then:
-          - *send_notification
+      - *send_update_progress_notification
 
       - alias: "Update - Core"
         continue_on_error: true
         repeat:
           while:
-            - "{{ input_core_os_update_mode in ['patches', 'major_and_minor', 'all'] }}"
-            - condition: or
-              conditions:
-                - condition: template
-                  value_template: '{{ is_out_of_schedule_mode }}'
-                - condition: state
-                  entity_id: !input schedule_entity
-                  state: "on"
-            - condition: template
+            - &cond_core_os_updates_enabled
+              alias: Core/OS updates are enabled
+              condition: template
+              value_template: "{{ input_core_os_update_mode in ['patches', 'major_and_minor', 'all'] }}"
+            - *cond_still_in_update_window
+            - alias: A core update is still pending
+              condition: template
               value_template: >
                 {{ ( states.update
                   | selectattr('state', 'eq', 'on')
@@ -1998,7 +2255,8 @@ action:
                 }}
           sequence:
 
-            - variables:
+            - alias: List pending core updates
+              variables:
                 updates_pending: >
                   {{ states.update
                     | selectattr('state', 'eq', 'on')
@@ -2015,39 +2273,28 @@ action:
 
   - alias: Update OS
     if:
-      - '{{ is_there_anything_to_update }}'
-      - condition: or
-        conditions:
-          - condition: template
-            value_template: '{{ is_out_of_schedule_mode }}'
-          - condition: state
-            entity_id: !input schedule_entity
-            state: 'on'
+      - *cond_updates_found
+      - *cond_in_update_window
     then:
       - *recalc_update_list
-      - variables:
+      - alias: Set log message (update OS)
+        variables:
           log_message: "Update OS"
       - *logbook_update
-      - variables:
+      - alias: Set log message (starting OS update)
+        variables:
           log_message: "Starting sequence of OS update"
       - *logbook_update
-      - if: '{{ "update_progress" in input_notification_select_notifications }}'
-        then:
-          - *send_notification
+      - *send_update_progress_notification
 
       - alias: "Update - OS"
         continue_on_error: true
         repeat:
           while:
-            - "{{ input_core_os_update_mode in ['patches', 'major_and_minor', 'all'] }}"
-            - condition: or
-              conditions:
-                - condition: template
-                  value_template: '{{ is_out_of_schedule_mode }}'
-                - condition: state
-                  entity_id: !input schedule_entity
-                  state: "on"
-            - condition: template
+            - *cond_core_os_updates_enabled
+            - *cond_still_in_update_window
+            - alias: An OS update is still pending
+              condition: template
               value_template: >
                 {{ ( states.update
                   | selectattr('state', 'eq', 'on')
@@ -2058,7 +2305,8 @@ action:
                 }}
           sequence:
 
-            - variables:
+            - alias: List pending OS updates
+              variables:
                 updates_pending: >
                   {{ states.update
                     | selectattr('state', 'eq', 'on')
@@ -2076,20 +2324,16 @@ action:
   - alias: Update - Remaining  # Update all remaining items => this chaches up if some update item was left behind
     continue_on_error: true
     if:
-      - '{{ is_there_anything_to_update }}'
-      - condition: or
-        conditions:
-          - condition: template
-            value_template: '{{ is_out_of_schedule_mode }}'
-          - condition: state
-            entity_id: !input schedule_entity
-            state: 'on'
+      - *cond_updates_found
+      - *cond_in_update_window
     then:
       - *recalc_update_list
-      - variables:
+      - alias: Set log message (updating remaining items)
+        variables:
           log_message: "Updating all remaining items (if any)"
       - *logbook_update
-      - variables:
+      - alias: List remaining updates
+        variables:
           remaining_items: |
             {{ states.update
             | selectattr('state', 'eq', 'on')
@@ -2100,17 +2344,28 @@ action:
             }}
           remaining_items_count: '{{ remaining_items | count if remaining_items is sequence else 0 }}'
 
-      - condition: '{{ remaining_items_count > 0 }}'
+      - alias: There are remaining updates
+        condition: template
+        value_template: '{{ remaining_items_count > 0 }}'
 
-      - variables:
+      - alias: Set log message (remaining updates)
+        variables:
           log_message: |
             Remaining updates:
             - {{ remaining_items | join("\n- ") }}
 
       - *logbook_update
-      - if: '{{ "update_progress" in input_notification_select_notifications }}'
-        then:
-          - *send_notification
+      - alias: Set install log entry (installing remaining updates)
+        variables:
+          install_log_is_error: false
+          install_log_message: |-
+            Installing {{ remaining_items_count }} remaining update{{ "s" if remaining_items_count != 1 }} together:
+            {%- for e in remaining_items %}
+              - {{ state_attr(e, "friendly_name") | default(e, true) }}:
+                {{- " " ~ state_attr(e, "installed_version") | default("?", true) }} -> {{ state_attr(e, "latest_version") | default("?", true) }}
+            {%- endfor %}
+      - *write_install_log
+      - *send_update_progress_notification
 
       - alias: "Update - Remaining - Install"
         continue_on_error: true
@@ -2144,21 +2399,17 @@ action:
 
   - alias: Finishing
     if:
-      - '{{ is_there_anything_to_update }}'
-      - condition: or
-        conditions:
-          - condition: template
-            value_template: '{{ is_out_of_schedule_mode }}'
-          - condition: state
-            entity_id: !input schedule_entity
-            state: 'on'
+      - *cond_updates_found
+      - *cond_in_update_window
     then:
       - *recalc_update_list
-      - variables:
+      - alias: Set log message (finishing)
+        variables:
           log_message: "Finishing update process"
       - *logbook_update
 
-      - variables:
+      - alias: List updates that are still pending
+        variables:
           remaining_updates: |
             {{
               states.update
@@ -2169,33 +2420,91 @@ action:
               | list
             }}
           remaining_updates_count: '{{ remaining_updates | count | int(0) }}'
-      - if: '{{ remaining_updates_count > 0 }}'
+      - alias: Report remaining updates
+        if:
+          - alias: Some updates are still pending
+            condition: template
+            value_template: '{{ remaining_updates_count > 0 }}'
         then:
-          - variables:
+          - alias: Set log message (remaining updates)
+            variables:
               log_message: |
                 Remaining updates:
                 - {{ remaining_updates | join("\n- ") }}
           - *logbook_update
-          - if: >-
-              {{
-                "done" in input_notification_select_notifications or
-                "errors" in input_notification_select_notifications
-              }}
+          - alias: Send done/error notification (if selected)
+            if:
+              - alias: Done or error notifications are selected
+                condition: template
+                value_template: >-
+                  {{
+                    "done" in input_notification_select_notifications or
+                    "errors" in input_notification_select_notifications
+                  }}
             then:
               - *send_notification
           - alias: "Run custom error actions (remaining updates)"
             continue_on_error: true
             sequence: !input notification_action_errors
         else:
-          - variables:
+          - alias: Set log message (nothing remaining)
+            variables:
               log_message: "No remaining items to be updated"
           - *logbook_update
 
+  # Its own step, not part of "Finishing", so the summary is also written when the schedule
+  # closed mid-run. A restart during the run (e.g. a Core update) ends it before this point.
+  - alias: Write the run summary to the install log
+    if:
+      - *cond_updates_found
+    then:
+      - alias: Compare the updates found at the start with what is still pending
+        variables:
+          install_log_not_installed: >-
+            {{
+              states.update
+              | selectattr('state', 'eq', 'on')
+              | selectattr('entity_id', 'in', install_log_found_entities)
+              | map(attribute='entity_id')
+              | list
+            }}
+          install_log_found_count: '{{ install_log_found_entities | count }}'
+          install_log_installed_count: '{{ install_log_found_count - install_log_not_installed | count }}'
+          install_log_schedule_ended: >-
+            {{ not is_out_of_schedule_mode and not is_state(input_schedule_entity, "on") }}
+      - alias: Log updates that were not installed
+        if:
+          - alias: Some updates found at the start were not installed
+            condition: template
+            value_template: '{{ install_log_not_installed | count > 0 }}'
+        then:
+          - alias: Set install log entry (not installed)
+            variables:
+              install_log_is_error: true
+              install_log_message: |-
+                {{ install_log_not_installed | count }} update{{ "s" if install_log_not_installed | count != 1 }} not installed
+                {{- " (the schedule ended)" if install_log_schedule_ended else "" }}:
+                {%- for e in install_log_not_installed %}
+                  - {{ state_attr(e, "friendly_name") | default(e, true) }}:
+                    {{- " " ~ state_attr(e, "installed_version") | default("?", true) }} -> {{ state_attr(e, "latest_version") | default("?", true) }}
+                {%- endfor %}
+          - *write_install_log
+      - alias: Set install log entry (summary)
+        variables:
+          install_log_is_error: false
+          install_log_message: >-
+            Finished: {{ install_log_installed_count }} of {{ install_log_found_count }}
+            update{{ "s" if install_log_found_count != 1 }} installed
+      - *write_install_log
+
   - alias: Restart  # Restart Home Assistant
     sequence:
-      - variables:
+      - alias: Read the restart type input
+        variables:
           input_restart_type: !input restart_type
-      - condition: '{{ input_restart_type != "no-restart" }}'
+      - alias: Restarting is enabled
+        condition: template
+        value_template: '{{ input_restart_type != "no-restart" }}'
       - alias: Wait pending operations  # Wait for any pending operations to complete
         continue_on_error: true
         wait_template: |
@@ -2212,6 +2521,7 @@ action:
         timeout:
           seconds: 30
       - &update_pending_restart_items
+        alias: List items waiting for a restart
         variables:
           pending_restart_items: |
             {{ states.update
@@ -2221,19 +2531,33 @@ action:
               | list
             }}
           pending_restart_items_count: '{{ pending_restart_items | count | int(0) }}'
-      - if: '{{ pending_restart_items_count < 1 }}'
+      - alias: Log if nothing needs a restart
+        if:
+          - alias: Nothing is waiting for a restart
+            condition: template
+            value_template: '{{ pending_restart_items_count < 1 }}'
         then:
-          - variables:
+          - alias: Set log message (nothing requires a restart)
+            variables:
               log_message: 'Nothing requiring a restart'
           - *logbook_update
-      - condition: '{{ pending_restart_items_count > 0 }}'
-      - variables:
+      - &cond_restart_needed
+        alias: Something is waiting for a restart
+        condition: template
+        value_template: '{{ pending_restart_items_count > 0 }}'
+      - alias: Set log message (items pending a restart)
+        variables:
           log_message: >
             {{ pending_restart_items_count }} item{{ "s" if pending_restart_items_count > 1 }} pending a restart:
 
             - {{ pending_restart_items | join("\n- ") }}
       - *logbook_update
-      - if: '{{ "restart" in input_notification_select_notifications }}'
+      - &send_restart_notification
+        alias: Send restart notification (if selected)
+        if:
+          - alias: Restart notifications are selected
+            condition: template
+            value_template: '{{ "restart" in input_notification_select_notifications }}'
         then:
           - *send_notification
       - alias: "Run custom restart actions"
@@ -2243,11 +2567,12 @@ action:
       - alias: "Restart"
         continue_on_error: true
         sequence:
-          - condition: '{{ pending_restart_items_count > 0 }}'
+          - *cond_restart_needed
           - alias: "Restart - Check config"
             continue_on_error: true
             action: homeassistant.check_config
-          - variables:
+          - alias: Read the config check result
+            variables:
               has_invalid_config: >
                 {{
                   states.persistent_notification.invalid_config.state
@@ -2258,19 +2583,23 @@ action:
                   states.persistent_notification.homeassistant_check_config.state
                   | default('unavailable') == 'notifying'
                 }}
-          - if: '{{ has_invalid_config or has_check_config_notification }}'
+          - alias: Restart only if the configuration is valid
+            if:
+              - alias: Configuration check reported a problem
+                condition: template
+                value_template: '{{ has_invalid_config or has_check_config_notification }}'
             then:
-              - variables:
+              - alias: Set log message (running pre-restart actions)
+                variables:
                   log_message: 'Running pre-restart actions...'
               - *logbook_update
-              - if: '{{ "restart" in input_notification_select_notifications }}'
-                then:
-                  - *send_notification
+              - *send_restart_notification
 
               - alias: "Run pre-restart actions"
                 continue_on_error: true
                 sequence: !input actions_pre_restart
-              - variables:
+              - alias: Set log message (restart skipped)
+                variables:
                   log_message: >
                     Skipping restart process due to notifications of invalid configurations:
 
@@ -2278,19 +2607,30 @@ action:
 
                       - has_check_config_notification = {{ has_check_config_notification }}
               - *logbook_update
-              - if: '{{ "restart" in input_notification_select_notifications }}'
-                then:
-                  - *send_notification
+              - alias: Set install log entry (restart skipped)
+                variables:
+                  install_log_is_error: true
+                  install_log_message: >-
+                    Restart skipped because the configuration check reported a problem.
+                    Waiting for a restart: {{ pending_restart_items | join(", ") }}
+              - *write_install_log
+              - *send_restart_notification
             else:
-              - variables:
+              - alias: Set log message (restarting)
+                variables:
                   log_message: >
                     The system is set to restart automatically when an update requires it.
 
                     Restarting Home Assistant ({{ input_restart_type }})...
               - *logbook_update
-              - if: '{{ "restart" in input_notification_select_notifications }}'
-                then:
-                  - *send_notification
+              - alias: Set install log entry (restarting)
+                variables:
+                  install_log_is_error: false
+                  install_log_message: >-
+                    Restarting Home Assistant ({{ input_restart_type }}) for:
+                    {{ pending_restart_items | join(", ") }}
+              - *write_install_log
+              - *send_restart_notification
 
               - alias: "Wait 15 seconds to deliver the notification message."
                 delay:
@@ -2302,10 +2642,14 @@ action:
 
   - alias: Post-update actions
     sequence:
-      - variables:
+      - alias: Read the post-update actions input
+        variables:
           input_actions_pos_update: !input actions_pos_update
-      - condition: '{{ input_actions_pos_update is sequence }}'
-      - variables:
+      - alias: Post-update actions are configured
+        condition: template
+        value_template: '{{ input_actions_pos_update is sequence }}'
+      - alias: Set log message (running post-update actions)
+        variables:
           log_message: "Running post-update actions"
       - *logbook_update
 
@@ -2315,29 +2659,28 @@ action:
 
   - alias: Set OFF helper flag
     if:
-      - '{{ input_update_process_started_entity | default([]) | count > 0 }}'
-      - '{{ input_update_process_started_entity[0] | string | length > 0 }}'
+      - *cond_helper_flag_configured
     then:
-      - action: input_boolean.turn_off
+      - alias: Turn off the update process toggle
+        action: input_boolean.turn_off
         target:
           entity_id: !input update_process_started_entity
         continue_on_error: true
 
   - alias: Done  # All done!
     if:
-      - '{{ is_there_anything_to_update }}'
-      - condition: or
-        conditions:
-          - condition: template
-            value_template: '{{ is_out_of_schedule_mode }}'
-          - condition: state
-            entity_id: !input schedule_entity
-            state: 'on'
+      - *cond_updates_found
+      - *cond_in_update_window
     then:
-      - variables:
+      - alias: Set log message (done)
+        variables:
           log_message: "Done!"
       - *logbook_update
-      - if: '{{ "done" in input_notification_select_notifications }}'
+      - alias: Send done notification (if selected)
+        if:
+          - alias: Done notifications are selected
+            condition: template
+            value_template: '{{ "done" in input_notification_select_notifications }}'
         then:
           - *send_notification
       - alias: "Run custom done actions"

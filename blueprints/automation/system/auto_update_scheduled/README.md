@@ -4,6 +4,58 @@
 > This is a fork of [ha_auto_update_scheduled](https://github.com/edwardtfn/ha_auto_update_scheduled)
 > by [Edward Firmo](https://github.com/edwardtfn). See [UPSTREAM.md](UPSTREAM.md) for details.
 
+## Changes in this fork
+
+### Named steps in traces
+
+Every condition and action has a name, so an automation trace shows *why* a run stopped
+("Schedule is on", "Updates are not paused", "Backup confirmed by a new timestamp")
+instead of "If any of 5 conditions matches" or "Test if template renders a value equal to true".
+
+### Install log
+
+An optional plain-text log file with what each run found, what it installed (with versions),
+backups, restarts, errors, and a summary line. Runs with nothing to update write nothing.
+
+```text
+2026-10-16 18:08:07 [Auto Update Home Assistant] Found 2 updates:
+  - ESPHome: 2026.9.3 -> 2026.10.0
+  - Mushroom: 4.5.0 -> 4.6.0
+2026-10-16 18:09:12 [Auto Update Home Assistant] Backup completed
+2026-10-16 18:09:13 [Auto Update Home Assistant] Installing ESPHome: 2026.9.3 -> 2026.10.0
+2026-10-16 18:11:40 [Auto Update Home Assistant] Installed ESPHome: 2026.9.3 -> 2026.10.0
+2026-10-16 18:11:41 [Auto Update Home Assistant] Installing Mushroom: 4.5.0 -> 4.6.0
+2026-10-16 18:31:41 [Auto Update Home Assistant] ERROR: Mushroom 4.5.0 -> 4.6.0 did not finish within 1200 seconds (installed version is now 4.5.0)
+2026-10-16 18:31:45 [Auto Update Home Assistant] ERROR: 1 update not installed:
+  - Mushroom: 4.5.0 -> 4.6.0
+2026-10-16 18:31:45 [Auto Update Home Assistant] Finished: 1 of 2 updates installed
+```
+
+Errors and warnings can also be copied to a separate error log file.
+
+Setup:
+
+1. Allow Home Assistant to write files in the config folder by adding this to `configuration.yaml`,
+   then restart:
+
+   ```yaml
+   homeassistant:
+     allowlist_external_dirs:
+       - /config
+   ```
+
+   This lets file-based integrations read and write anything in `/config`. To keep it narrower,
+   allow a subfolder such as `/config/logs` instead and put the log files there.
+
+2. Add the **File** integration under *Settings > Devices & Services*, choose
+   **Set up a notification service**, and enter a path such as `/config/auto_update.log`.
+   Leave **Timestamp** off; the blueprint writes its own. Repeat for an error log if you want one.
+
+3. In the automation, open **Install log (optional)** and select the file notify entities.
+
+A run that ends in a restart (for example a Core update) stops before the summary line;
+the last entry is then the `Installing ...` line for the update that restarted Home Assistant.
+
 ## What is this?
 A Home Assistant blueprint to assist keeping the system automatically updated with the latest version of it's multiple components.
 
