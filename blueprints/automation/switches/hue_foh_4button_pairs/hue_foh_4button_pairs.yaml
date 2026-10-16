@@ -1,0 +1,375 @@
+blueprint:
+  name: Hue, Friends of Hue switch, 4 button, paired on/off + dimming
+  description: >-
+    HA version 2024.06 or newer.
+
+    Select ONE Friends of Hue switch (via the Hue bridge / Hue integration).
+    The four buttons are used as two pairs:
+
+    Pair 1 - button 1 (upper left) = on / hold to brighten,
+    button 3 (upper right) = off / hold to dim down.
+
+    Pair 2 - button 2 (lower left) = on / hold to brighten,
+    button 4 (lower right) = off / hold to dim down.
+
+    The automation only triggers on "initial press" and then follows that one
+    button until it is released. That is what fixes the old problem where a
+    Friends of Hue switch sends "short release" together with "long release" -
+    after a long release the run is already finished, so the short-press action
+    can never fire by mistake.
+
+    Each pair can be switched over to your own custom actions instead of the
+    built-in light control.
+
+  author: Alexander Hallberg (https://github.com/AlexHallberg)
+  homeassistant:
+    min_version: 2024.6.0
+  domain: automation
+  source_url: https://raw.githubusercontent.com/AlexHallberg/Home-Assistant-Blueprints/main/blueprints/automation/switches/hue_foh_4button_pairs/hue_foh_4button_pairs.yaml
+
+  input:
+    switch_section:
+      name: Switch
+      icon: mdi:light-switch
+      input:
+        foh_switch:
+          name: Friends of Hue switch
+          description: The switch device - one device, all 4 buttons.
+          selector:
+            device:
+              filter:
+                - integration: hue
+              entity:
+                - domain: event
+              multiple: false
+
+    pair_1_section:
+      name: Pair 1 - button 1 (upper left) + button 3 (upper right)
+      icon: mdi:lightbulb
+      input:
+        pair_1_lights:
+          name: Lights for pair 1
+          description: >-
+            Button 1 = on / hold to brighten. Button 3 = off / hold to dim down.
+          default: {}
+          selector:
+            target:
+              entity:
+                - domain: light
+        pair_1_custom:
+          name: Use custom actions for pair 1
+          description: >-
+            Ignore the lights above and run the actions from the "Custom
+            actions" section for button 1 and 3 instead.
+          default: false
+          selector:
+            boolean:
+
+    pair_2_section:
+      name: Pair 2 - button 2 (lower left) + button 4 (lower right)
+      icon: mdi:lightbulb-outline
+      input:
+        pair_2_lights:
+          name: Lights for pair 2
+          description: >-
+            Button 2 = on / hold to brighten. Button 4 = off / hold to dim down.
+          default: {}
+          selector:
+            target:
+              entity:
+                - domain: light
+        pair_2_custom:
+          name: Use custom actions for pair 2
+          description: >-
+            Ignore the lights above and run the actions from the "Custom
+            actions" section for button 2 and 4 instead.
+          default: false
+          selector:
+            boolean:
+
+    options_section:
+      name: Options
+      icon: mdi:tune
+      collapsed: true
+      input:
+        brightness_step:
+          name: Dim step
+          description: Brightness change for every repeat while a button is held.
+          default: 10
+          selector:
+            number:
+              min: 1
+              max: 50
+              step: 1
+              unit_of_measurement: "%"
+              mode: slider
+        transition:
+          name: Transition
+          description: Transition time used for on and off.
+          default: 1
+          selector:
+            number:
+              min: 0
+              max: 10
+              step: 0.5
+              unit_of_measurement: s
+              mode: slider
+        hold_timeout:
+          name: Release timeout
+          description: >-
+            Stop waiting for a release after this many seconds - a safety net if
+            a release event is lost.
+          default: 30
+          selector:
+            number:
+              min: 5
+              max: 300
+              step: 5
+              unit_of_measurement: s
+              mode: slider
+
+    custom_section:
+      name: Custom actions
+      icon: mdi:script-text-outline
+      collapsed: true
+      input:
+        button_1_press:
+          name: Press 1
+          description: Action to run on button upper-left initial press
+          default: []
+          selector:
+            action: {}
+        button_2_press:
+          name: Press 2
+          description: Action to run on button lower-left initial press
+          default: []
+          selector:
+            action: {}
+        button_3_press:
+          name: Press 3
+          description: Action to run on button upper-right initial press
+          default: []
+          selector:
+            action: {}
+        button_4_press:
+          name: Press 4
+          description: Action to run on button lower-right initial press
+          default: []
+          selector:
+            action: {}
+
+        button_1_repeat:
+          name: Repeat 1
+          description: Action to run on button upper-left repeat
+          default: []
+          selector:
+            action: {}
+        button_2_repeat:
+          name: Repeat 2
+          description: Action to run on button lower-left repeat
+          default: []
+          selector:
+            action: {}
+        button_3_repeat:
+          name: Repeat 3
+          description: Action to run on button upper-right repeat
+          default: []
+          selector:
+            action: {}
+        button_4_repeat:
+          name: Repeat 4
+          description: Action to run on button lower-right repeat
+          default: []
+          selector:
+            action: {}
+
+        button_1_short_release:
+          name: Short Release 1
+          description: Action to run on button upper-left short release
+          default: []
+          selector:
+            action: {}
+        button_2_short_release:
+          name: Short Release 2
+          description: Action to run on button lower-left short release
+          default: []
+          selector:
+            action: {}
+        button_3_short_release:
+          name: Short Release 3
+          description: Action to run on button upper-right short release
+          default: []
+          selector:
+            action: {}
+        button_4_short_release:
+          name: Short Release 4
+          description: Action to run on button lower-right short release
+          default: []
+          selector:
+            action: {}
+
+        button_1_long_release:
+          name: Long Release 1
+          description: Action to run on button upper-left long release
+          default: []
+          selector:
+            action: {}
+        button_2_long_release:
+          name: Long Release 2
+          description: Action to run on button lower-left long release
+          default: []
+          selector:
+            action: {}
+        button_3_long_release:
+          name: Long Release 3
+          description: Action to run on button upper-right long release
+          default: []
+          selector:
+            action: {}
+        button_4_long_release:
+          name: Long Release 4
+          description: Action to run on button lower-right long release
+          default: []
+          selector:
+            action: {}
+
+mode: parallel
+max: 10
+max_exceeded: silent
+
+trigger:
+  - platform: event
+    event_type: hue_event
+    event_data:
+      device_id: !input foh_switch
+      type: initial_press
+
+variables:
+  btn: "{{ trigger.event.data.subtype | int(0) }}"
+  pair: "{{ 1 if (trigger.event.data.subtype | int(0)) in [1, 3] else 2 }}"
+  dir_up: "{{ (trigger.event.data.subtype | int(0)) in [1, 2] }}"
+  step: !input brightness_step
+  trans: !input transition
+  wait_timeout: !input hold_timeout
+  custom_1: !input pair_1_custom
+  custom_2: !input pair_2_custom
+  custom: "{{ custom_1 if (trigger.event.data.subtype | int(0)) in [1, 3] else custom_2 }}"
+
+action:
+  # ---------- initial press (custom only) ----------
+  - choose:
+      - conditions: "{{ custom }}"
+        sequence:
+          - choose:
+              - conditions: "{{ btn == 1 }}"
+                sequence: !input button_1_press
+              - conditions: "{{ btn == 2 }}"
+                sequence: !input button_2_press
+              - conditions: "{{ btn == 3 }}"
+                sequence: !input button_3_press
+              - conditions: "{{ btn == 4 }}"
+                sequence: !input button_4_press
+
+  # ---------- follow this button until it is released ----------
+  - repeat:
+      count: 250
+      sequence:
+        - wait_for_trigger:
+            - platform: event
+              event_type: hue_event
+              event_data:
+                device_id: !input foh_switch
+          timeout: "{{ wait_timeout }}"
+          continue_on_timeout: true
+
+        - choose:
+            # --- nothing arrived in time, give up ---
+            - conditions: "{{ wait.trigger is none }}"
+              sequence:
+                - stop: "No release received"
+
+            # --- another button, keep waiting ---
+            - conditions: "{{ (wait.trigger.event.data.subtype | int(0)) != btn }}"
+              sequence:
+                - variables:
+                    ignored: true
+
+            # --- button is being held ---
+            - conditions: "{{ wait.trigger.event.data.type == 'repeat' }}"
+              sequence:
+                - choose:
+                    - conditions: "{{ custom }}"
+                      sequence:
+                        - choose:
+                            - conditions: "{{ btn == 1 }}"
+                              sequence: !input button_1_repeat
+                            - conditions: "{{ btn == 2 }}"
+                              sequence: !input button_2_repeat
+                            - conditions: "{{ btn == 3 }}"
+                              sequence: !input button_3_repeat
+                            - conditions: "{{ btn == 4 }}"
+                              sequence: !input button_4_repeat
+                  default:
+                    - choose:
+                        - conditions: "{{ pair == 1 }}"
+                          sequence:
+                            - service: light.turn_on
+                              target: !input pair_1_lights
+                              data:
+                                brightness_step_pct: >-
+                                  {{ (step | int) if dir_up else -(step | int) }}
+                        - conditions: "{{ pair == 2 }}"
+                          sequence:
+                            - service: light.turn_on
+                              target: !input pair_2_lights
+                              data:
+                                brightness_step_pct: >-
+                                  {{ (step | int) if dir_up else -(step | int) }}
+
+            # --- real short press ---
+            - conditions: "{{ wait.trigger.event.data.type == 'short_release' }}"
+              sequence:
+                - choose:
+                    - conditions: "{{ custom }}"
+                      sequence:
+                        - choose:
+                            - conditions: "{{ btn == 1 }}"
+                              sequence: !input button_1_short_release
+                            - conditions: "{{ btn == 2 }}"
+                              sequence: !input button_2_short_release
+                            - conditions: "{{ btn == 3 }}"
+                              sequence: !input button_3_short_release
+                            - conditions: "{{ btn == 4 }}"
+                              sequence: !input button_4_short_release
+                  default:
+                    - choose:
+                        - conditions: "{{ pair == 1 }}"
+                          sequence:
+                            - service: "{{ 'light.turn_on' if dir_up else 'light.turn_off' }}"
+                              target: !input pair_1_lights
+                              data:
+                                transition: "{{ trans }}"
+                        - conditions: "{{ pair == 2 }}"
+                          sequence:
+                            - service: "{{ 'light.turn_on' if dir_up else 'light.turn_off' }}"
+                              target: !input pair_2_lights
+                              data:
+                                transition: "{{ trans }}"
+                - stop: "Short press handled"
+
+            # --- end of a hold ---
+            - conditions: "{{ wait.trigger.event.data.type == 'long_release' }}"
+              sequence:
+                - choose:
+                    - conditions: "{{ custom }}"
+                      sequence:
+                        - choose:
+                            - conditions: "{{ btn == 1 }}"
+                              sequence: !input button_1_long_release
+                            - conditions: "{{ btn == 2 }}"
+                              sequence: !input button_2_long_release
+                            - conditions: "{{ btn == 3 }}"
+                              sequence: !input button_3_long_release
+                            - conditions: "{{ btn == 4 }}"
+                              sequence: !input button_4_long_release
+                - stop: "Hold finished"
