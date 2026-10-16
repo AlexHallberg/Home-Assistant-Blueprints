@@ -1,0 +1,71 @@
+blueprint:
+  name: Turn off lights when nobody is home
+  description: >-
+    Version v2026.10.0. See the
+    [changelog](https://github.com/AlexHallberg/Home-Assistant-Blueprints/blob/main/blueprints/automation/lighting/lights_off_when_away/CHANGELOG.md).
+
+
+    Once a day, at the time you choose, turns off the selected lights if nobody is home.
+
+
+    Somebody counts as away when their entity is anything other than `home`. If any of them is
+    `unknown` or `unavailable`, nothing is turned off, because it is not certain the house is empty.
+  author: Alexander Hallberg (https://github.com/AlexHallberg)
+  homeassistant:
+    min_version: 2024.10.0
+  domain: automation
+  source_url: https://raw.githubusercontent.com/AlexHallberg/Home-Assistant-Blueprints/main/blueprints/automation/lighting/lights_off_when_away/lights_off_when_away.yaml
+
+  input:
+    presence_entities:
+      name: People
+      description: >-
+        People, device trackers, or a group of them. The lights are turned off only when none
+        of them is `home`. For a group, the group's own state is used.
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: person
+            - domain: device_tracker
+            - domain: group
+
+    lights:
+      name: Lights to turn off
+      description: Floors, areas, labels or individual lights.
+      selector:
+        target:
+          entity:
+            - domain: light
+
+    check_time:
+      name: Time
+      description: When to check every day.
+      default: "03:00:00"
+      selector:
+        time: {}
+
+mode: single
+
+triggers:
+  - id: Daily check
+    trigger: time
+    at: !input check_time
+
+variables:
+  input_presence_entities: !input presence_entities
+
+conditions:
+  - alias: Everyone's presence is known (none unknown or unavailable)
+    condition: template
+    value_template: >-
+      {{ input_presence_entities | select('is_state', ['unknown', 'unavailable']) | list | count == 0 }}
+  - alias: Nobody is home
+    condition: template
+    value_template: >-
+      {{ input_presence_entities | select('is_state', 'home') | list | count == 0 }}
+
+actions:
+  - alias: Turn off the lights
+    action: light.turn_off
+    target: !input lights
