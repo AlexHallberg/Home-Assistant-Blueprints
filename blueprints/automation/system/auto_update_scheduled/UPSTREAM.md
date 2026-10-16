@@ -25,6 +25,13 @@ does **not** apply to this folder; the original work remains Edward Firmo's.
   conditions and notification steps are shared through YAML anchors.
 - New optional install log and error log (File integration notify entities), with the
   `install_log_section` inputs.
+- Fixed: the "Update process started" toggle was treated as a list, but the entity
+  selector gives a plain string, so `count` and `first` returned its length and first
+  character. Resume after a restart was never detected, and with the toggle set the
+  backup was always skipped. The input is now normalised once into
+  `update_process_toggle`, and the "No backup has been made yet" check uses the
+  toggle's state at the start of the run, since "Set ON helper flag" turns it on
+  before the backup step.
 
 Because of the aliases, almost every block in the blueprint differs from upstream, so
 `git subtree pull` will conflict heavily. Expect to port upstream fixes by hand.

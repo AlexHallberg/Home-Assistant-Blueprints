@@ -963,7 +963,7 @@ condition:
             id: "HA Start"
           - alias: Update process toggle is configured
             condition: template
-            value_template: '{{ input_update_process_started_entity | default([]) | count == 1 }}'
+            value_template: '{{ update_process_toggle != "" }}'
           - alias: Update process toggle is on (a run was in progress)
             condition: state
             entity_id: !input update_process_started_entity
@@ -1032,10 +1032,21 @@ variables:
       if (device_attr(u, 'identifiers') | first | default(""))[1] == 'supervisor' %}
         {{ u }}
     {% endfor %}
+  # The entity selector (multiple: false) gives a plain string once set and the
+  # [] default when not. Strings are sequences in Jinja, so `count` and `first`
+  # on the raw input return its length and first character. Normalise it once
+  # to the entity id, or "" when it is not configured.
+  update_process_toggle: >-
+    {%- set e = input_update_process_started_entity | default("") -%}
+    {%- if e is string -%}
+      {{ e | trim }}
+    {%- elif e is sequence and e | count > 0 -%}
+      {{ e | first | string | trim }}
+    {%- endif -%}
   is_resume_after_restart: >
     {{
-      input_update_process_started_entity | default([]) | count == 1 and
-      is_state(input_update_process_started_entity | first | default(""), "on")
+      update_process_toggle != "" and
+      is_state(update_process_toggle, "on")
     }}
   is_out_of_schedule_mode: >
     {{
@@ -1495,11 +1506,7 @@ action:
       - &cond_helper_flag_configured
         alias: Update process toggle is configured
         condition: template
-        value_template: >-
-          {{
-            input_update_process_started_entity | default([]) | count > 0 and
-            input_update_process_started_entity[0] | string | length > 0
-          }}
+        value_template: '{{ update_process_toggle != "" }}'
       - alias: Schedule is on
         condition: state
         entity_id: !input schedule_entity
@@ -1767,17 +1774,16 @@ action:
               - *cond_needs_backup
               - alias: No backup has been made yet in this update window
                 condition: template
-                value_template: >-
-                  {{
-                    input_update_process_started_entity | default([]) | count < 1 or
-                    is_state(input_update_process_started_entity | first | default(""), "off")
-                  }}
+                # Not the live toggle state: "Set ON helper flag" has already
+                # turned it on in this run. A toggle that was on at the start
+                # means this run resumes one that already backed up.
+                value_template: '{{ not is_resume_after_restart }}'
             then:
               - alias: Turn on the update process toggle (if configured)
                 if:
                   - alias: Update process toggle is configured
                     condition: template
-                    value_template: '{{ input_update_process_started_entity | default([]) | count > 0 }}'
+                    value_template: '{{ update_process_toggle != "" }}'
                 then:
                   - alias: Turn on the update process toggle
                     action: input_boolean.turn_on
