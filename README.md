@@ -48,20 +48,37 @@ Categories in use, extended as new blueprints need them:
 Pick the category for what a blueprint mainly does, and keep the list short; a
 blueprint can only live in one place.
 
-Each blueprint folder holds the blueprint YAML, a `README.md`, and any images it uses.
-Forked blueprints also carry an `UPSTREAM.md` recording where they came from, their
+Each blueprint folder holds the blueprint YAML, a `README.md`, a `CHANGELOG.md`, and any
+images it uses. Forked blueprints also carry an `UPSTREAM.md` recording where they came from, their
 license, and the upstream commit they were last synced to.
 
 A blueprint's path is part of its import URL (`source_url`), so once a blueprint is
 published its folder should not move or be renamed.
+
+## Versioning
+
+Every blueprint has its own calendar version, `vYYYY.M.N`, the same scheme Home Assistant uses:
+
+- `YYYY.M` is the year and month of the release, and `N` counts releases within that month,
+  starting at `0`. A second release in October 2026 is `v2026.10.1`; the first in November is
+  `v2026.11.0`.
+- Any change to the blueprint YAML that people will notice in Home Assistant gets a new version.
+  Changes to the README or other documentation do not.
+- The version appears in three places, which must match:
+  - at the end of the blueprint `name`, so it shows in Home Assistant's blueprint list;
+  - in the `description`;
+  - as a heading in the blueprint's `CHANGELOG.md`, with the date and what changed.
+- A fork's first release in this repository restarts the numbering from its release month, and
+  its changelog names the upstream version it is based on.
 
 ## Adding a blueprint
 
 1. Create `blueprints/<domain>/<category>/<name>/` and put `<name>.yaml` in it.
 2. Set `source_url` to
    `https://raw.githubusercontent.com/AlexHallberg/Home-Assistant-Blueprints/main/blueprints/<domain>/<category>/<name>/<name>.yaml`.
-3. Add a `README.md`, and an `UPSTREAM.md` if it is a fork.
-4. Add a row to the table above.
+3. Give it a version as described under [Versioning](#versioning), and start its `CHANGELOG.md`.
+4. Add a `README.md`, and an `UPSTREAM.md` if it is a fork.
+5. Add a row to the table above.
 
 ## License
 

@@ -6,6 +6,8 @@
 
 ## Changes in this fork
 
+Current version: **v2026.10.0**, based on upstream v2026.6.0. See [CHANGELOG.md](CHANGELOG.md).
+
 ### Named steps in traces
 
 Every condition and action has a name, so an automation trace shows *why* a run stopped

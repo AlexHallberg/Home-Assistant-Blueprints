@@ -1,0 +1,25 @@
+---
+name: Validate blueprint versions
+
+on:  # yamllint disable-line rule:truthy
+  push:
+    paths:
+      - 'blueprints/**'
+      - '.github/scripts/check_versions.py'
+  pull_request:
+    paths:
+      - 'blueprints/**'
+      - '.github/scripts/check_versions.py'
+  workflow_dispatch:
+
+jobs:
+  versions:
+    name: Check versions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@main
+
+      - name: Check blueprint versions
+        run: python3 .github/scripts/check_versions.py
+...

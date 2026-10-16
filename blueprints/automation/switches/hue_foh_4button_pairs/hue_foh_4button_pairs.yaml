@@ -1,6 +1,9 @@
 blueprint:
-  name: Hue, Friends of Hue switch, 4 button, paired on/off + dimming
+  name: Hue, Friends of Hue switch, 4 button, paired on/off + dimming v2026.10.0
   description: >-
+    Version v2026.10.0. See the
+    [changelog](https://github.com/AlexHallberg/Home-Assistant-Blueprints/blob/main/blueprints/automation/switches/hue_foh_4button_pairs/CHANGELOG.md).
+
     HA version 2024.06 or newer.
 
     Select ONE Friends of Hue switch (via the Hue bridge / Hue integration).
