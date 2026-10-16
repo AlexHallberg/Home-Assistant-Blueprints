@@ -23,7 +23,7 @@ jobs:
           fetch-depth: '0'
 
       - name: Identify changed files
-        uses: tj-actions/changed-files@v41
+        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96  # v47.0.6
         id: changed-files
         with:
           files: '**/*.y*ml'
@@ -34,11 +34,6 @@ jobs:
         run: |
           IFS=',' read -ra FILES <<< "${{ steps.changed-files.outputs.all_changed_files }}"
           for file in "${FILES[@]}"; do
-            if [[ "$file" =~ ^*\.yaml$ ]] || \
-              [[ "$file" =~ ^ESPHome/*\.yaml$ ]]; then
-              echo "Skipping $file"
-              continue
-            fi
             echo "::group::Validating $file"
             yamllint -c "./.rules/yamllint.yml" "$file"
             echo "::endgroup::"
