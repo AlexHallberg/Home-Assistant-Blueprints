@@ -3,6 +3,9 @@
 Controls lights from one 4-button Friends of Hue switch connected through the Hue bridge.
 The buttons work as two on/off pairs, and holding a button dims or brightens.
 
+For your own actions on every button and event, or several switches in one automation, see
+[Friends of Hue 4-button custom](../hue_foh_4button_custom/).
+
 | Pair | On / hold to brighten   | Off / hold to dim       |
 | ---- | ----------------------- | ----------------------- |
 | 1    | Button 1 (upper left)   | Button 3 (upper right)  |
