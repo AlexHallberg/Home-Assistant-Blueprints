@@ -32,10 +32,10 @@ does **not** apply to this folder; the original work remains Edward Firmo's.
   `update_process_toggle`, and the "No backup has been made yet" check uses the
   toggle's state at the start of the run, since "Set ON helper flag" turns it on
   before the backup step.
+- Upstream's `.github` and `.rules` folders were moved to the repository root.
 
 Because of the aliases, almost every block in the blueprint differs from upstream, so
 `git subtree pull` will conflict heavily. Expect to port upstream fixes by hand.
-- Upstream's `.github` and `.rules` folders were moved to the repository root.
 
 ## Pulling upstream changes
 
