@@ -5,22 +5,36 @@ authors with local changes.
 
 ## Blueprints
 
-| Blueprint | Type | Origin | Import |
-| --------- | ---- | ------ | ------ |
-| [Auto-update on a schedule](blueprints/automation/auto_update_scheduled/) | Automation | Fork of [edwardtfn][upstream-auto-update] | [![Import][import-badge]][import-auto-update] |
+| Blueprint | Type | Category | Origin | Import |
+| --------- | ---- | -------- | ------ | ------ |
+| [Auto-update on a schedule](blueprints/automation/system/auto_update_scheduled/) | Automation | System | Fork of [edwardtfn][upstream-auto-update] | [![Import][import-badge]][import-auto-update] |
 
 [import-badge]: https://my.home-assistant.io/badges/blueprint_import.svg
 [upstream-auto-update]: https://github.com/edwardtfn/ha_auto_update_scheduled
-[import-auto-update]: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FAlexHallberg%2FHome-Assistant-Blueprints%2Fmain%2Fblueprints%2Fautomation%2Fauto_update_scheduled%2Fauto_update_scheduled.yaml
+[import-auto-update]: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FAlexHallberg%2FHome-Assistant-Blueprints%2Fmain%2Fblueprints%2Fautomation%2Fsystem%2Fauto_update_scheduled%2Fauto_update_scheduled.yaml
 
 ## Repository layout
 
 ```text
 blueprints/
-  automation/<name>/   automation blueprints
-  script/<name>/       script blueprints
-  template/<name>/     template blueprints
+  <domain>/            automation, script or template, as in Home Assistant
+    <category>/        what the blueprint does
+      <name>/          one folder per blueprint
 ```
+
+Categories in use, extended as new blueprints need them:
+
+| Category        | For                                                |
+| --------------- | -------------------------------------------------- |
+| `system`        | Home Assistant itself: updates, backups, health    |
+| `lighting`      | Lights and scenes                                  |
+| `climate`       | Heating, cooling, ventilation                      |
+| `presence`      | Occupancy, arriving and leaving                    |
+| `security`      | Alarms, locks, cameras                             |
+| `notifications` | Alerts and reminders                               |
+
+Pick the category for what a blueprint mainly does, and keep the list short; a
+blueprint can only live in one place.
 
 Each blueprint folder holds the blueprint YAML, a `README.md`, and any images it uses.
 Forked blueprints also carry an `UPSTREAM.md` recording where they came from, their
@@ -31,9 +45,9 @@ published its folder should not move or be renamed.
 
 ## Adding a blueprint
 
-1. Create `blueprints/<domain>/<name>/` and put `<name>.yaml` in it.
+1. Create `blueprints/<domain>/<category>/<name>/` and put `<name>.yaml` in it.
 2. Set `source_url` to
-   `https://raw.githubusercontent.com/AlexHallberg/Home-Assistant-Blueprints/main/blueprints/<domain>/<name>/<name>.yaml`.
+   `https://raw.githubusercontent.com/AlexHallberg/Home-Assistant-Blueprints/main/blueprints/<domain>/<category>/<name>/<name>.yaml`.
 3. Add a `README.md`, and an `UPSTREAM.md` if it is a fork.
 4. Add a row to the table above.
 

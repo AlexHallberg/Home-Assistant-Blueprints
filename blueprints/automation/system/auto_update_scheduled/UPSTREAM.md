@@ -28,7 +28,7 @@ From the repository root:
 
 ```bash
 git remote add upstream-auto-update https://github.com/edwardtfn/ha_auto_update_scheduled.git
-git subtree pull --prefix=blueprints/automation/auto_update_scheduled upstream-auto-update main
+git subtree pull --prefix=blueprints/automation/system/auto_update_scheduled upstream-auto-update main
 ```
 
 `source_url` and the badge URL will conflict whenever upstream changes those lines;

@@ -52,7 +52,7 @@ blueprint:
     ## For support, bug reports and new ideas:
       - [GitHub Issues](https://github.com/edwardtfn/ha_auto_update_scheduled/issues)
   domain: automation
-  source_url: https://raw.githubusercontent.com/AlexHallberg/Home-Assistant-Blueprints/main/blueprints/automation/auto_update_scheduled/auto_update_scheduled.yaml
+  source_url: https://raw.githubusercontent.com/AlexHallberg/Home-Assistant-Blueprints/main/blueprints/automation/system/auto_update_scheduled/auto_update_scheduled.yaml
   input:
     when_section:
       name: When (Schedule, etc.)
