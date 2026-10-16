@@ -16,7 +16,7 @@ does **not** apply to this folder; the original work remains Edward Firmo's.
 | Imported with    | `git subtree add` (full history)                   |
 | Upstream commit  | `1924a7f` (Merge pull request #22 from edwardtfn/dev) |
 | Upstream version | v2026.6.0                                          |
-| Fork version     | v2026.10.1 (see [CHANGELOG.md](CHANGELOG.md))      |
+| Fork version     | v2026.10.2 (see [CHANGELOG.md](CHANGELOG.md))      |
 
 ## Changes in this fork
 
@@ -33,6 +33,8 @@ does **not** apply to this folder; the original work remains Edward Firmo's.
   `update_process_toggle`, and the "No backup has been made yet" check uses the
   toggle's state at the start of the run, since "Set ON helper flag" turns it on
   before the backup step.
+- The single `minimum_patch_version` input is split into one per update type: core/OS,
+  firmware and general.
 - Upstream's `.github` and `.rules` folders were moved to the repository root.
 
 Because of the aliases, almost every block in the blueprint differs from upstream, so

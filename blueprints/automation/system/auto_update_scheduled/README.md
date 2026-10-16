@@ -6,7 +6,7 @@
 
 ## Changes in this fork
 
-Current version: **v2026.10.1**, based on upstream v2026.6.0. See [CHANGELOG.md](CHANGELOG.md).
+Current version: **v2026.10.2**, based on upstream v2026.6.0. See [CHANGELOG.md](CHANGELOG.md).
 
 ### Named steps in traces
 

@@ -3,6 +3,15 @@
 Versions before v2026.10.0 are upstream releases; see the
 [upstream commit log](https://github.com/edwardtfn/ha_auto_update_scheduled/commits/main).
 
+## v2026.10.2 - 2026-10-16
+
+- Changed: the minimum patch version is set separately for core/OS, firmware and general
+  updates (`core_os_minimum_patch_version`, `firmware_minimum_patch_version`,
+  `general_minimum_patch_version`), so one automation can hold back core updates while
+  installing add-on and HACS updates straight away.
+  **Breaking:** the old `minimum_patch_version` input is removed. Automations that set it
+  need the new input(s) instead; otherwise the filter is off.
+
 ## v2026.10.1 - 2026-10-16
 
 - Changed: renamed to "Home Assistant Auto-update".
