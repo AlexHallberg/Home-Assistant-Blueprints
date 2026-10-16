@@ -238,7 +238,8 @@ max: 10
 max_exceeded: silent
 
 trigger:
-  - platform: event
+  - id: Button pressed
+    platform: event
     event_type: hue_event
     event_data:
       device_id: !input foh_switch
@@ -257,119 +258,227 @@ variables:
 
 action:
   # ---------- initial press (custom only) ----------
-  - choose:
-      - conditions: "{{ custom }}"
+  - alias: Initial press - run custom action (if this pair uses custom actions)
+    choose:
+      - alias: This pair uses custom actions
+        conditions:
+          - &cond_custom
+            alias: Custom actions are on for this pair
+            condition: template
+            value_template: "{{ custom }}"
         sequence:
-          - choose:
-              - conditions: "{{ btn == 1 }}"
+          - alias: Run the custom press action for this button
+            choose:
+              - alias: Button 1 (upper left)
+                conditions:
+                  - &cond_btn_1
+                    alias: Button 1 (upper left)
+                    condition: template
+                    value_template: "{{ btn == 1 }}"
                 sequence: !input button_1_press
-              - conditions: "{{ btn == 2 }}"
+              - alias: Button 2 (lower left)
+                conditions:
+                  - &cond_btn_2
+                    alias: Button 2 (lower left)
+                    condition: template
+                    value_template: "{{ btn == 2 }}"
                 sequence: !input button_2_press
-              - conditions: "{{ btn == 3 }}"
+              - alias: Button 3 (upper right)
+                conditions:
+                  - &cond_btn_3
+                    alias: Button 3 (upper right)
+                    condition: template
+                    value_template: "{{ btn == 3 }}"
                 sequence: !input button_3_press
-              - conditions: "{{ btn == 4 }}"
+              - alias: Button 4 (lower right)
+                conditions:
+                  - &cond_btn_4
+                    alias: Button 4 (lower right)
+                    condition: template
+                    value_template: "{{ btn == 4 }}"
                 sequence: !input button_4_press
 
   # ---------- follow this button until it is released ----------
-  - repeat:
+  - alias: Follow this button until it is released
+    repeat:
       count: 250
       sequence:
-        - wait_for_trigger:
-            - platform: event
+        - alias: Wait for the next event from the switch
+          wait_for_trigger:
+            - id: Switch event
+              platform: event
               event_type: hue_event
               event_data:
                 device_id: !input foh_switch
           timeout: "{{ wait_timeout }}"
           continue_on_timeout: true
 
-        - choose:
+        - alias: Handle the event
+          choose:
             # --- nothing arrived in time, give up ---
-            - conditions: "{{ wait.trigger is none }}"
+            - alias: No event before the release timeout
+              conditions:
+                - alias: Wait timed out
+                  condition: template
+                  value_template: "{{ wait.trigger is none }}"
               sequence:
                 - stop: "No release received"
 
             # --- another button, keep waiting ---
-            - conditions: "{{ (wait.trigger.event.data.subtype | int(0)) != btn }}"
+            - alias: Event from another button - ignore it
+              conditions:
+                - alias: Event is from a different button
+                  condition: template
+                  value_template: "{{ (wait.trigger.event.data.subtype | int(0)) != btn }}"
               sequence:
-                - variables:
+                - alias: Ignore the event and keep waiting
+                  variables:
                     ignored: true
 
             # --- button is being held ---
-            - conditions: "{{ wait.trigger.event.data.type == 'repeat' }}"
+            - alias: Button is held (repeat)
+              conditions:
+                - alias: Event is a repeat
+                  condition: template
+                  value_template: "{{ wait.trigger.event.data.type == 'repeat' }}"
               sequence:
-                - choose:
-                    - conditions: "{{ custom }}"
+                - alias: Run the custom repeat action, or step the brightness
+                  choose:
+                    - alias: This pair uses custom actions
+                      conditions:
+                        - *cond_custom
                       sequence:
-                        - choose:
-                            - conditions: "{{ btn == 1 }}"
+                        - alias: Run the custom repeat action for this button
+                          choose:
+                            - alias: Button 1 (upper left)
+                              conditions:
+                                - *cond_btn_1
                               sequence: !input button_1_repeat
-                            - conditions: "{{ btn == 2 }}"
+                            - alias: Button 2 (lower left)
+                              conditions:
+                                - *cond_btn_2
                               sequence: !input button_2_repeat
-                            - conditions: "{{ btn == 3 }}"
+                            - alias: Button 3 (upper right)
+                              conditions:
+                                - *cond_btn_3
                               sequence: !input button_3_repeat
-                            - conditions: "{{ btn == 4 }}"
+                            - alias: Button 4 (lower right)
+                              conditions:
+                                - *cond_btn_4
                               sequence: !input button_4_repeat
                   default:
-                    - choose:
-                        - conditions: "{{ pair == 1 }}"
+                    - alias: Step the brightness of this pair's lights
+                      choose:
+                        - alias: Pair 1
+                          conditions:
+                            - &cond_pair_1
+                              alias: Button belongs to pair 1
+                              condition: template
+                              value_template: "{{ pair == 1 }}"
                           sequence:
-                            - service: light.turn_on
+                            - alias: Step pair 1 brightness up or down
+                              service: light.turn_on
                               target: !input pair_1_lights
                               data:
                                 brightness_step_pct: >-
                                   {{ (step | int) if dir_up else -(step | int) }}
-                        - conditions: "{{ pair == 2 }}"
+                        - alias: Pair 2
+                          conditions:
+                            - &cond_pair_2
+                              alias: Button belongs to pair 2
+                              condition: template
+                              value_template: "{{ pair == 2 }}"
                           sequence:
-                            - service: light.turn_on
+                            - alias: Step pair 2 brightness up or down
+                              service: light.turn_on
                               target: !input pair_2_lights
                               data:
                                 brightness_step_pct: >-
                                   {{ (step | int) if dir_up else -(step | int) }}
 
             # --- real short press ---
-            - conditions: "{{ wait.trigger.event.data.type == 'short_release' }}"
+            - alias: Short press released
+              conditions:
+                - alias: Event is a short release
+                  condition: template
+                  value_template: "{{ wait.trigger.event.data.type == 'short_release' }}"
               sequence:
-                - choose:
-                    - conditions: "{{ custom }}"
+                - alias: Run the custom short release action, or turn the lights on or off
+                  choose:
+                    - alias: This pair uses custom actions
+                      conditions:
+                        - *cond_custom
                       sequence:
-                        - choose:
-                            - conditions: "{{ btn == 1 }}"
+                        - alias: Run the custom short release action for this button
+                          choose:
+                            - alias: Button 1 (upper left)
+                              conditions:
+                                - *cond_btn_1
                               sequence: !input button_1_short_release
-                            - conditions: "{{ btn == 2 }}"
+                            - alias: Button 2 (lower left)
+                              conditions:
+                                - *cond_btn_2
                               sequence: !input button_2_short_release
-                            - conditions: "{{ btn == 3 }}"
+                            - alias: Button 3 (upper right)
+                              conditions:
+                                - *cond_btn_3
                               sequence: !input button_3_short_release
-                            - conditions: "{{ btn == 4 }}"
+                            - alias: Button 4 (lower right)
+                              conditions:
+                                - *cond_btn_4
                               sequence: !input button_4_short_release
                   default:
-                    - choose:
-                        - conditions: "{{ pair == 1 }}"
+                    - alias: Turn this pair's lights on or off
+                      choose:
+                        - alias: Pair 1
+                          conditions:
+                            - *cond_pair_1
                           sequence:
-                            - service: "{{ 'light.turn_on' if dir_up else 'light.turn_off' }}"
+                            - alias: Turn pair 1 lights on or off
+                              service: "{{ 'light.turn_on' if dir_up else 'light.turn_off' }}"
                               target: !input pair_1_lights
                               data:
                                 transition: "{{ trans }}"
-                        - conditions: "{{ pair == 2 }}"
+                        - alias: Pair 2
+                          conditions:
+                            - *cond_pair_2
                           sequence:
-                            - service: "{{ 'light.turn_on' if dir_up else 'light.turn_off' }}"
+                            - alias: Turn pair 2 lights on or off
+                              service: "{{ 'light.turn_on' if dir_up else 'light.turn_off' }}"
                               target: !input pair_2_lights
                               data:
                                 transition: "{{ trans }}"
                 - stop: "Short press handled"
 
             # --- end of a hold ---
-            - conditions: "{{ wait.trigger.event.data.type == 'long_release' }}"
+            - alias: Hold released
+              conditions:
+                - alias: Event is a long release
+                  condition: template
+                  value_template: "{{ wait.trigger.event.data.type == 'long_release' }}"
               sequence:
-                - choose:
-                    - conditions: "{{ custom }}"
+                - alias: Run the custom long release action (if this pair uses custom actions)
+                  choose:
+                    - alias: This pair uses custom actions
+                      conditions:
+                        - *cond_custom
                       sequence:
-                        - choose:
-                            - conditions: "{{ btn == 1 }}"
+                        - alias: Run the custom long release action for this button
+                          choose:
+                            - alias: Button 1 (upper left)
+                              conditions:
+                                - *cond_btn_1
                               sequence: !input button_1_long_release
-                            - conditions: "{{ btn == 2 }}"
+                            - alias: Button 2 (lower left)
+                              conditions:
+                                - *cond_btn_2
                               sequence: !input button_2_long_release
-                            - conditions: "{{ btn == 3 }}"
+                            - alias: Button 3 (upper right)
+                              conditions:
+                                - *cond_btn_3
                               sequence: !input button_3_long_release
-                            - conditions: "{{ btn == 4 }}"
+                            - alias: Button 4 (lower right)
+                              conditions:
+                                - *cond_btn_4
                               sequence: !input button_4_long_release
                 - stop: "Hold finished"
