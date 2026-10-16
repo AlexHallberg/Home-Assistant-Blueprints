@@ -5,11 +5,12 @@ blueprint:
     [changelog](https://github.com/AlexHallberg/Home-Assistant-Blueprints/blob/main/blueprints/automation/lighting/lights_off_when_away/CHANGELOG.md).
 
 
-    Once a day, at the time you choose, turns off the selected lights if nobody is home.
+    Once a day, at the time you choose, turns off every light in Home Assistant if nobody is home.
 
 
-    Somebody counts as away when their entity is anything other than `home`. If any of them is
-    `unknown` or `unavailable`, nothing is turned off, because it is not certain the house is empty.
+    "Nobody is home" means the home zone counts 0 people. A zone's state is the number of
+    people in it. If the zone is `unknown` or `unavailable`, nothing is turned off, because it
+    is not certain the house is empty.
   author: Alexander Hallberg (https://github.com/AlexHallberg)
   homeassistant:
     min_version: 2024.10.0
@@ -17,26 +18,16 @@ blueprint:
   source_url: https://raw.githubusercontent.com/AlexHallberg/Home-Assistant-Blueprints/main/blueprints/automation/lighting/lights_off_when_away/lights_off_when_away.yaml
 
   input:
-    presence_entities:
-      name: People
+    home_zone:
+      name: Home zone
       description: >-
-        People, device trackers, or a group of them. The lights are turned off only when none
-        of them is `home`. For a group, the group's own state is used.
+        The zone whose person count decides whether anybody is home. Only people (`person`
+        entities) are counted, not device trackers on their own.
+      default: zone.home
       selector:
         entity:
-          multiple: true
           filter:
-            - domain: person
-            - domain: device_tracker
-            - domain: group
-
-    lights:
-      name: Lights to turn off
-      description: Floors, areas, labels or individual lights.
-      selector:
-        target:
-          entity:
-            - domain: light
+            - domain: zone
 
     check_time:
       name: Time
@@ -53,19 +44,19 @@ triggers:
     at: !input check_time
 
 variables:
-  input_presence_entities: !input presence_entities
+  input_home_zone: !input home_zone
+  people_home: "{{ states(input_home_zone) | int(-1) }}"
 
 conditions:
-  - alias: Everyone's presence is known (none unknown or unavailable)
+  - alias: The home zone's person count is known
     condition: template
-    value_template: >-
-      {{ input_presence_entities | select('is_state', ['unknown', 'unavailable']) | list | count == 0 }}
-  - alias: Nobody is home
+    value_template: "{{ people_home >= 0 }}"
+  - alias: Nobody is home (0 people in the home zone)
     condition: template
-    value_template: >-
-      {{ input_presence_entities | select('is_state', 'home') | list | count == 0 }}
+    value_template: "{{ people_home == 0 }}"
 
 actions:
-  - alias: Turn off the lights
+  - alias: Turn off all lights
     action: light.turn_off
-    target: !input lights
+    target:
+      entity_id: all
