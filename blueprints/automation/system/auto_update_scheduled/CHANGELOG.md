@@ -6,6 +6,10 @@ Versions before v2026.10.0 are upstream releases; see the
 ## v2026.10.1 - 2026-10-16
 
 - Changed: renamed to "Home Assistant Auto-update".
+- Fixed: with no schedule entity set, the install log said "(the schedule ended)" on every
+  "not installed" entry.
+- Changed: the schedule entity input says it can be left empty to install updates whenever they
+  are found, and the "Schedule is on" trace steps now read "(or no schedule is set)".
 - Changed: the version is no longer part of the blueprint name; it is in the description.
   Spook's update entity takes its entity ID from the name, so a version there would stay frozen
   in the entity ID after updates.

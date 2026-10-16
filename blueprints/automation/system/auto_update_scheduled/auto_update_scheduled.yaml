@@ -73,6 +73,8 @@ blueprint:
             Note => The schedule windows will define when an update will start.
             It is possible that a backup, an update or a restart process finishes after the schedule window,
             but new updates won't start outside the schedule windows.
+
+            Leave empty to install updates whenever they are found, with no schedule.
           default: []
           selector:
             entity:
@@ -941,7 +943,7 @@ condition:
       - alias: Inside the schedule with pending updates
         condition: and
         conditions:
-          - alias: Schedule is on
+          - alias: Schedule is on (or no schedule is set)
             condition: state
             entity_id: !input schedule_entity
             state: 'on'
@@ -1398,7 +1400,7 @@ action:
           - alias: Running out-of-schedule updates
             condition: template
             value_template: '{{ is_out_of_schedule_mode }}'
-          - alias: Schedule is on
+          - alias: Schedule is on (or no schedule is set)
             condition: state
             entity_id: !input schedule_entity
             state: 'on'
@@ -1508,7 +1510,7 @@ action:
         alias: Update process toggle is configured
         condition: template
         value_template: '{{ update_process_toggle != "" }}'
-      - alias: Schedule is on
+      - alias: Schedule is on (or no schedule is set)
         condition: state
         entity_id: !input schedule_entity
         state: 'on'
@@ -2047,7 +2049,7 @@ action:
                 - alias: Running out-of-schedule updates
                   condition: template
                   value_template: '{{ is_out_of_schedule_mode }}'
-                - alias: Schedule is on
+                - alias: Schedule is on (or no schedule is set)
                   condition: state
                   entity_id: !input schedule_entity
                   state: "on"
@@ -2478,7 +2480,11 @@ action:
           install_log_found_count: '{{ install_log_found_entities | count }}'
           install_log_installed_count: '{{ install_log_found_count - install_log_not_installed | count }}'
           install_log_schedule_ended: >-
-            {{ not is_out_of_schedule_mode and not is_state(input_schedule_entity, "on") }}
+            {{
+              not is_out_of_schedule_mode and
+              input_schedule_entity is string and input_schedule_entity | length > 0 and
+              not is_state(input_schedule_entity, "on")
+            }}
       - alias: Log updates that were not installed
         if:
           - alias: Some updates found at the start were not installed
