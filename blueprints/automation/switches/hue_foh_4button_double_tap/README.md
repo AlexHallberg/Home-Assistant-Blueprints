@@ -21,8 +21,7 @@ rebuilt so a double click runs only its own action and no counter helpers are ne
 
 ## Setup
 
-1. Select the Hue event entity for each button. To give several switches the same actions,
-   select the same button on each of them.
+1. Select the switch. Its four buttons are mapped automatically. Use one automation per switch.
 2. Fill in the actions for each button. Leave any of them empty to do nothing.
 3. Under **Double click and timing**, tick the buttons that have a double-click action.
 
@@ -61,22 +60,21 @@ data:
 
 ## How it works
 
+The blueprint listens to the Hue integration's `hue_event` events for the selected switch.
 One run follows the whole sequence: the first press, its release, and a possible second press.
-Because of that, the double-click decision needs no helpers and each switch's buttons are
-handled separately.
+Because of that, the double-click decision needs no helpers.
 
-- While a sequence is running, presses on *other* buttons in the same automation are ignored
-  (`mode: single`). If several switches in one automation are often pressed at the same time,
-  use one automation per switch.
+- While a sequence is running, presses on the switch's *other* buttons are ignored
+  (`mode: single`).
 - A third quick click starts a new sequence, so a triple click runs the double-click action and
   then the single-click action.
-- Triggers ignore changes to and from `unavailable` and `unknown`, so a Hue bridge reconnect does
-  not replay a button's last event.
+- `hue_event` only fires for real button events, so a Hue bridge reconnect does not replay a
+  button's last event.
 - A hold ends on the first `long_release` or `short_release`, which covers Friends of Hue
   switches that send either or both.
 
 ## Requirements
 
 - Home Assistant 2024.10 or newer.
-- The switch must be paired with a Hue bridge and added through the Hue integration, which
-  provides one event entity per button.
+- The switch must be paired with a Hue bridge and added through the Hue integration.
+  Switches added through Zigbee2MQTT or ZHA are not supported.

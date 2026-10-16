@@ -1,7 +1,7 @@
 blueprint:
-  name: Hue, Friends of Hue switch, 4 button, single + double click + hold v2026.10.0
+  name: Hue, Friends of Hue switch, 4 button, single + double click + hold v2026.10.1
   description: >-
-    Version v2026.10.0. See the
+    Version v2026.10.1. See the
     [changelog](https://github.com/AlexHallberg/Home-Assistant-Blueprints/blob/main/blueprints/automation/switches/hue_foh_4button_double_tap/CHANGELOG.md).
 
 
@@ -21,9 +21,9 @@ blueprint:
     double-click window before a single click runs. Other buttons act immediately.
 
 
-    No helpers are needed. While one button sequence is running, presses on other
-    buttons of the same automation are ignored, so use one automation per switch
-    if several switches are often pressed at the same time.
+    Select one switch; its four buttons are mapped automatically. No helpers are
+    needed. While one button sequence is running, presses on the switch's other
+    buttons are ignored.
 
 
     Inspired by Anybody4u's "multi tap v2" blueprint.
@@ -34,49 +34,20 @@ blueprint:
   source_url: https://raw.githubusercontent.com/AlexHallberg/Home-Assistant-Blueprints/main/blueprints/automation/switches/hue_foh_4button_double_tap/hue_foh_4button_double_tap.yaml
 
   input:
-    buttons_section:
-      name: Buttons
+    switch_section:
+      name: Switch
       icon: mdi:light-switch
-      description: >-
-        Select the Hue event entity for each button. Select the same button on several
-        switches to give them the same actions.
       input:
-        button_1_entity:
-          name: Button 1 (upper left)
+        foh_switch:
+          name: Friends of Hue switch
+          description: The switch device, connected through the Hue bridge. All four buttons are used.
           selector:
-            entity:
-              multiple: true
+            device:
               filter:
+                - integration: hue
+              entity:
                 - domain: event
-                  integration: hue
-                  device_class: button
-        button_2_entity:
-          name: Button 2 (lower left)
-          selector:
-            entity:
-              multiple: true
-              filter:
-                - domain: event
-                  integration: hue
-                  device_class: button
-        button_3_entity:
-          name: Button 3 (upper right)
-          selector:
-            entity:
-              multiple: true
-              filter:
-                - domain: event
-                  integration: hue
-                  device_class: button
-        button_4_entity:
-          name: Button 4 (lower right)
-          selector:
-            entity:
-              multiple: true
-              filter:
-                - domain: event
-                  integration: hue
-                  device_class: button
+              multiple: false
 
     button_1_section:
       name: Button 1 (upper left) actions
@@ -241,295 +212,257 @@ blueprint:
 mode: single
 max_exceeded: silent
 
-# not_from / not_to: when the Hue bridge reconnects, each button entity goes from
-# "unavailable" back to its last event, which would otherwise replay that event.
 triggers:
-  - id: B1
-    trigger: state
-    entity_id: !input button_1_entity
-    not_from: &not_unavailable
-      - unavailable
-      - unknown
-    not_to: *not_unavailable
-  - id: B2
-    trigger: state
-    entity_id: !input button_2_entity
-    not_from: *not_unavailable
-    not_to: *not_unavailable
-  - id: B3
-    trigger: state
-    entity_id: !input button_3_entity
-    not_from: *not_unavailable
-    not_to: *not_unavailable
-  - id: B4
-    trigger: state
-    entity_id: !input button_4_entity
-    not_from: *not_unavailable
-    not_to: *not_unavailable
-
-conditions:
-  - alias: A button was pressed down (initial press)
-    condition: template
-    value_template: "{{ trigger.to_state.attributes.event_type == 'initial_press' }}"
+  - id: Button pressed
+    trigger: event
+    event_type: hue_event
+    event_data:
+      device_id: !input foh_switch
+      type: initial_press
 
 variables:
-  button: "{{ trigger.id }}"
-  pressed_entity: "{{ trigger.entity_id }}"
+  pressed_subtype: "{{ trigger.event.data.subtype | int(0) }}"
+  button: "{{ 'B' ~ (trigger.event.data.subtype | int(0)) }}"
   input_double_click_buttons: !input double_click_buttons
   input_tap_delay: !input tap_delay
   input_hold_timeout: !input hold_timeout
   uses_double_click: "{{ button in input_double_click_buttons }}"
-  pressed_at: "{{ as_timestamp(trigger.to_state.last_changed) }}"
 
-# The first event after each press is read with a wait_template on the button's state,
-# not with wait_for_trigger, so a release that arrives before the run starts listening
-# is still seen. Later events (repeats while held) use wait_for_trigger.
 actions:
-  - alias: Wait for the first event after the press
-    wait_template: >-
-      {{ as_timestamp((expand(pressed_entity) | first).last_changed, 0) > pressed_at }}
-    timeout:
-      seconds: "{{ input_hold_timeout }}"
-    continue_on_timeout: true
+  # ---------- first press: wait for its first event ----------
+  - alias: Follow the first press until it is released or held
+    repeat:
+      count: 500
+      sequence:
+        - &wait_for_switch_event
+          alias: Wait for the next event from the switch
+          wait_for_trigger: &switch_events
+            - trigger: event
+              event_type: hue_event
+              event_data:
+                device_id: !input foh_switch
+          timeout:
+            seconds: "{{ input_hold_timeout }}"
+          continue_on_timeout: true
 
-  - alias: Handle the first event after the press
-    choose:
-      # ---------- click ----------
-      - alias: Click - the button was released straight away
-        conditions:
-          - &cond_first_event_short_release
-            alias: First event is a short release
-            condition: template
-            value_template: "{{ wait.completed and is_state_attr(pressed_entity, 'event_type', 'short_release') }}"
-        sequence:
-          - alias: Run the single click now if this button has no double click
-            if:
-              - alias: This button has no double-click action
-                condition: template
-                value_template: "{{ not uses_double_click }}"
-            then:
-              - &run_single_click
-                alias: Run the single-click action for this button
-                choose:
-                  - alias: Button 1 (upper left)
-                    conditions:
-                      - &cond_b1
-                        alias: Button 1 (upper left)
-                        condition: template
-                        value_template: "{{ button == 'B1' }}"
-                    sequence: !input button_1_single
-                  - alias: Button 2 (lower left)
-                    conditions:
-                      - &cond_b2
-                        alias: Button 2 (lower left)
-                        condition: template
-                        value_template: "{{ button == 'B2' }}"
-                    sequence: !input button_2_single
-                  - alias: Button 3 (upper right)
-                    conditions:
-                      - &cond_b3
-                        alias: Button 3 (upper right)
-                        condition: template
-                        value_template: "{{ button == 'B3' }}"
-                    sequence: !input button_3_single
-                  - alias: Button 4 (lower right)
-                    conditions:
-                      - &cond_b4
-                        alias: Button 4 (lower right)
-                        condition: template
-                        value_template: "{{ button == 'B4' }}"
-                    sequence: !input button_4_single
-              - stop: "Single click handled"
-
-          # ---------- double-click window ----------
-          - alias: Set the end of the double-click window
-            variables:
-              double_click_deadline: "{{ as_timestamp(now()) + (input_tap_delay | float(500)) / 1000 }}"
-
-          - alias: Wait for a second press within the double-click window
-            repeat:
-              count: 100
+        - alias: Handle the event (first press)
+          choose:
+            - &opt_timed_out
+              alias: No event before the release timeout
+              conditions:
+                - alias: Wait timed out
+                  condition: template
+                  value_template: "{{ wait.trigger is none }}"
               sequence:
-                - alias: Wait for a second press or the end of the window
-                  wait_for_trigger: &button_event_triggers
-                    - trigger: state
-                      entity_id: !input button_1_entity
-                      not_from: *not_unavailable
-                      not_to: *not_unavailable
-                    - trigger: state
-                      entity_id: !input button_2_entity
-                      not_from: *not_unavailable
-                      not_to: *not_unavailable
-                    - trigger: state
-                      entity_id: !input button_3_entity
-                      not_from: *not_unavailable
-                      not_to: *not_unavailable
-                    - trigger: state
-                      entity_id: !input button_4_entity
-                      not_from: *not_unavailable
-                      not_to: *not_unavailable
-                  timeout:
-                    seconds: "{{ [double_click_deadline - as_timestamp(now()), 0] | max }}"
-                  continue_on_timeout: true
+                - stop: "No release received"
 
-                - alias: Handle the event (double-click window)
-                  choose:
-                    - alias: No second press - it was a single click
-                      conditions:
-                        - alias: Double-click window ended
-                          condition: template
-                          value_template: "{{ wait.trigger is none }}"
-                      sequence:
-                        - *run_single_click
-                        - stop: "Single click handled"
+            - &opt_other_button
+              alias: Event from another button - ignore it
+              conditions:
+                - alias: Event is from a different button
+                  condition: template
+                  value_template: "{{ (wait.trigger.event.data.subtype | int(0)) != pressed_subtype }}"
+              sequence:
+                - alias: Ignore the event and keep waiting
+                  variables:
+                    ignored: true
 
-                    - alias: Same button pressed again - follow the second press
-                      conditions:
-                        - alias: Second press of the same button
-                          condition: template
-                          value_template: >-
-                            {{
-                              wait.trigger.entity_id == pressed_entity and
-                              wait.trigger.to_state.attributes.event_type == 'initial_press'
-                            }}
-                      sequence:
-                        - alias: Remember when the second press happened
-                          variables:
-                            second_pressed_at: "{{ as_timestamp(wait.trigger.to_state.last_changed) }}"
+            # ---------- click ----------
+            - alias: Click - the button was released straight away
+              conditions:
+                - &cond_short_release
+                  alias: Event is a short release
+                  condition: template
+                  value_template: "{{ wait.trigger.event.data.type == 'short_release' }}"
+              sequence:
+                - alias: Run the single click now if this button has no double click
+                  if:
+                    - alias: This button has no double-click action
+                      condition: template
+                      value_template: "{{ not uses_double_click }}"
+                  then:
+                    - &run_single_click
+                      alias: Run the single-click action for this button
+                      choose:
+                        - alias: Button 1 (upper left)
+                          conditions:
+                            - &cond_b1
+                              alias: Button 1 (upper left)
+                              condition: template
+                              value_template: "{{ button == 'B1' }}"
+                          sequence: !input button_1_single
+                        - alias: Button 2 (lower left)
+                          conditions:
+                            - &cond_b2
+                              alias: Button 2 (lower left)
+                              condition: template
+                              value_template: "{{ button == 'B2' }}"
+                          sequence: !input button_2_single
+                        - alias: Button 3 (upper right)
+                          conditions:
+                            - &cond_b3
+                              alias: Button 3 (upper right)
+                              condition: template
+                              value_template: "{{ button == 'B3' }}"
+                          sequence: !input button_3_single
+                        - alias: Button 4 (lower right)
+                          conditions:
+                            - &cond_b4
+                              alias: Button 4 (lower right)
+                              condition: template
+                              value_template: "{{ button == 'B4' }}"
+                          sequence: !input button_4_single
+                    - stop: "Single click handled"
 
-                        - alias: Wait for the first event after the second press
-                          wait_template: >-
-                            {{ as_timestamp((expand(pressed_entity) | first).last_changed, 0) > second_pressed_at }}
-                          timeout:
-                            seconds: "{{ input_hold_timeout }}"
-                          continue_on_timeout: true
+                # ---------- double-click window ----------
+                - alias: Set the end of the double-click window
+                  variables:
+                    double_click_deadline: "{{ as_timestamp(now()) + (input_tap_delay | float(500)) / 1000 }}"
 
-                        - alias: Handle the first event after the second press
-                          choose:
-                            - alias: Second click released - it was a double click
-                              conditions:
-                                - *cond_first_event_short_release
-                              sequence:
-                                - alias: Run the double-click action for this button
-                                  choose:
-                                    - alias: Button 1 (upper left)
-                                      conditions:
-                                        - *cond_b1
-                                      sequence: !input button_1_double
-                                    - alias: Button 2 (lower left)
-                                      conditions:
-                                        - *cond_b2
-                                      sequence: !input button_2_double
-                                    - alias: Button 3 (upper right)
-                                      conditions:
-                                        - *cond_b3
-                                      sequence: !input button_3_double
-                                    - alias: Button 4 (lower right)
-                                      conditions:
-                                        - *cond_b4
-                                      sequence: !input button_4_double
-                                - stop: "Double click handled"
+                - alias: Wait for a second press within the double-click window
+                  repeat:
+                    count: 100
+                    sequence:
+                      - alias: Wait for a second press or the end of the window
+                        wait_for_trigger: *switch_events
+                        timeout:
+                          seconds: "{{ [double_click_deadline - as_timestamp(now()), 0] | max }}"
+                        continue_on_timeout: true
 
-                            # ---------- hold (also used for the first press below) ----------
-                            - &opt_held
-                              alias: Button is held - follow the hold
-                              conditions:
-                                - alias: First event is a repeat
-                                  condition: template
-                                  value_template: "{{ wait.completed and is_state_attr(pressed_entity, 'event_type', 'repeat') }}"
-                              sequence:
-                                - &run_hold
-                                  alias: Run the hold action for this button
-                                  choose:
-                                    - alias: Button 1 (upper left)
-                                      conditions:
-                                        - *cond_b1
-                                      sequence: !input button_1_hold
-                                    - alias: Button 2 (lower left)
-                                      conditions:
-                                        - *cond_b2
-                                      sequence: !input button_2_hold
-                                    - alias: Button 3 (upper right)
-                                      conditions:
-                                        - *cond_b3
-                                      sequence: !input button_3_hold
-                                    - alias: Button 4 (lower right)
-                                      conditions:
-                                        - *cond_b4
-                                      sequence: !input button_4_hold
+                      - alias: Handle the event (double-click window)
+                        choose:
+                          - alias: No second press - it was a single click
+                            conditions:
+                              - alias: Double-click window ended
+                                condition: template
+                                value_template: "{{ wait.trigger is none }}"
+                            sequence:
+                              - *run_single_click
+                              - stop: "Single click handled"
 
-                                - alias: Follow the hold until it is released
-                                  repeat:
-                                    count: 500
-                                    sequence:
-                                      - alias: Wait for the next button event
-                                        wait_for_trigger: *button_event_triggers
-                                        timeout:
-                                          seconds: "{{ input_hold_timeout }}"
-                                        continue_on_timeout: true
+                          - alias: Same button pressed again - follow the second press
+                            conditions:
+                              - alias: Second press of the same button
+                                condition: template
+                                value_template: >-
+                                  {{
+                                    (wait.trigger.event.data.subtype | int(0)) == pressed_subtype and
+                                    wait.trigger.event.data.type == 'initial_press'
+                                  }}
+                            sequence:
+                              # ---------- second press ----------
+                              - alias: Follow the second press until it is released or held
+                                repeat:
+                                  count: 500
+                                  sequence:
+                                    - *wait_for_switch_event
+                                    - alias: Handle the event (second press)
+                                      choose:
+                                        - *opt_timed_out
+                                        - *opt_other_button
 
-                                      - alias: Handle the event (hold)
-                                        choose:
-                                          - alias: No event before the release timeout
-                                            conditions:
-                                              - alias: Wait timed out
-                                                condition: template
-                                                value_template: "{{ wait.trigger is none }}"
-                                            sequence:
-                                              - stop: "No release received"
+                                        - alias: Second click released - it was a double click
+                                          conditions:
+                                            - *cond_short_release
+                                          sequence:
+                                            - alias: Run the double-click action for this button
+                                              choose:
+                                                - alias: Button 1 (upper left)
+                                                  conditions:
+                                                    - *cond_b1
+                                                  sequence: !input button_1_double
+                                                - alias: Button 2 (lower left)
+                                                  conditions:
+                                                    - *cond_b2
+                                                  sequence: !input button_2_double
+                                                - alias: Button 3 (upper right)
+                                                  conditions:
+                                                    - *cond_b3
+                                                  sequence: !input button_3_double
+                                                - alias: Button 4 (lower right)
+                                                  conditions:
+                                                    - *cond_b4
+                                                  sequence: !input button_4_double
+                                            - stop: "Double click handled"
 
-                                          - alias: Event from another button - ignore it
-                                            conditions:
-                                              - alias: Event is from a different button
-                                                condition: template
-                                                value_template: "{{ wait.trigger.entity_id != pressed_entity }}"
-                                            sequence:
-                                              - alias: Ignore the event and keep waiting
-                                                variables:
-                                                  ignored: true
+                                        # ---------- hold (also used for the first press below) ----------
+                                        - &opt_held
+                                          alias: Button is held - follow the hold
+                                          conditions:
+                                            - &cond_repeat
+                                              alias: Event is a repeat
+                                              condition: template
+                                              value_template: "{{ wait.trigger.event.data.type == 'repeat' }}"
+                                          sequence:
+                                            - &run_hold
+                                              alias: Run the hold action for this button
+                                              choose:
+                                                - alias: Button 1 (upper left)
+                                                  conditions:
+                                                    - *cond_b1
+                                                  sequence: !input button_1_hold
+                                                - alias: Button 2 (lower left)
+                                                  conditions:
+                                                    - *cond_b2
+                                                  sequence: !input button_2_hold
+                                                - alias: Button 3 (upper right)
+                                                  conditions:
+                                                    - *cond_b3
+                                                  sequence: !input button_3_hold
+                                                - alias: Button 4 (lower right)
+                                                  conditions:
+                                                    - *cond_b4
+                                                  sequence: !input button_4_hold
 
-                                          - alias: Still held (repeat)
-                                            conditions:
-                                              - alias: Event is a repeat
-                                                condition: template
-                                                value_template: "{{ wait.trigger.to_state.attributes.event_type == 'repeat' }}"
-                                            sequence:
-                                              - *run_hold
+                                            - alias: Follow the hold until it is released
+                                              repeat:
+                                                count: 500
+                                                sequence:
+                                                  - *wait_for_switch_event
+                                                  - alias: Handle the event (hold)
+                                                    choose:
+                                                      - *opt_timed_out
+                                                      - *opt_other_button
+                                                      - alias: Still held (repeat)
+                                                        conditions:
+                                                          - *cond_repeat
+                                                        sequence:
+                                                          - *run_hold
+                                                      # Friends of Hue can end a hold with long_release,
+                                                      # short_release, or both; the first one ends the run.
+                                                      - &opt_hold_released
+                                                        alias: Hold released
+                                                        conditions:
+                                                          - alias: Event is a release
+                                                            condition: template
+                                                            value_template: >-
+                                                              {{ wait.trigger.event.data.type in ['long_release', 'short_release'] }}
+                                                        sequence:
+                                                          - alias: Run the hold-release action for this button
+                                                            choose:
+                                                              - alias: Button 1 (upper left)
+                                                                conditions:
+                                                                  - *cond_b1
+                                                                sequence: !input button_1_hold_release
+                                                              - alias: Button 2 (lower left)
+                                                                conditions:
+                                                                  - *cond_b2
+                                                                sequence: !input button_2_hold_release
+                                                              - alias: Button 3 (upper right)
+                                                                conditions:
+                                                                  - *cond_b3
+                                                                sequence: !input button_3_hold_release
+                                                              - alias: Button 4 (lower right)
+                                                                conditions:
+                                                                  - *cond_b4
+                                                                sequence: !input button_4_hold_release
+                                                          - stop: "Hold finished"
 
-                                          # Friends of Hue can end a hold with long_release,
-                                          # short_release, or both; the first one ends the run.
-                                          - alias: Hold released
-                                            conditions:
-                                              - alias: Event is a release
-                                                condition: template
-                                                value_template: >-
-                                                  {{ wait.trigger.to_state.attributes.event_type in ['long_release', 'short_release'] }}
-                                            sequence:
-                                              - alias: Run the hold-release action for this button
-                                                choose:
-                                                  - alias: Button 1 (upper left)
-                                                    conditions:
-                                                      - *cond_b1
-                                                    sequence: !input button_1_hold_release
-                                                  - alias: Button 2 (lower left)
-                                                    conditions:
-                                                      - *cond_b2
-                                                    sequence: !input button_2_hold_release
-                                                  - alias: Button 3 (upper right)
-                                                    conditions:
-                                                      - *cond_b3
-                                                    sequence: !input button_3_hold_release
-                                                  - alias: Button 4 (lower right)
-                                                    conditions:
-                                                      - *cond_b4
-                                                    sequence: !input button_4_hold_release
-                                              - stop: "Hold finished"
-                          default:
-                            - stop: "No release received after the second press"
-                  # Anything else (other buttons, other events) keeps waiting
-                  # for the rest of the double-click window.
+                                        # A long release without any repeat before it.
+                                        - *opt_hold_released
+                        # Anything else (other buttons, other events) keeps waiting
+                        # for the rest of the double-click window.
 
-      # ---------- first press held ----------
-      - *opt_held
-    default:
-      - stop: "No release received"
+            # ---------- first press held ----------
+            - *opt_held
+            - *opt_hold_released

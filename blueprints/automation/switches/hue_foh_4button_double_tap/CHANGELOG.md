@@ -1,5 +1,12 @@
 # Changelog
 
+## v2026.10.1 - 2026-10-16
+
+- Changed: select one Friends of Hue switch device instead of an event entity per button. Its
+  buttons are mapped automatically from the Hue integration's `hue_event` events.
+  **Breaking:** automations made from v2026.10.0 need the switch selected again.
+- Removed: several switches in one automation. Use one automation per switch.
+
 ## v2026.10.0 - 2026-10-16
 
 First release.
